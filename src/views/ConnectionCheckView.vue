@@ -12,8 +12,9 @@ async function checkApi() {
       signal: AbortSignal.timeout(5000),
     })
 
-    const data = response.ok ? await response.json() : null
-    status.value = data?.status === 'ok' ? 'connected' : 'unavailable'
+    const payload = response.ok ? await response.json() : null
+    const healthStatus = payload?.data?.status ?? payload?.status
+    status.value = healthStatus === 'ok' ? 'connected' : 'unavailable'
   } catch {
     status.value = 'unavailable'
   }

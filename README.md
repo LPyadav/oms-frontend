@@ -20,7 +20,7 @@ npm run dev
 ## Verify the API connection
 
 1. Open [the OMS frontend](http://127.0.0.1:5173/). The connection screen shows **API connected** once Laravel responds.
-2. Open [the health endpoint through Vite](http://127.0.0.1:5173/api/health). It should return HTTP `200` with `{"status":"ok"}`.
+2. Open [the health endpoint through Vite](http://127.0.0.1:5173/api/health). It should return HTTP `200` with `data.status` set to `"ok"`. The connection screen also accepts the top-level `status` used by the Foundation backend.
 3. If the screen shows **API unavailable**, check that Laravel is listening on port `8000`, then select **Try again**.
 
 The Vue view uses the relative URL `/api/health`. Vite proxies `/api` requests from `127.0.0.1:5173` to Laravel at `127.0.0.1:8000`. For a deployed build, configure the hosting service to forward `/api` to Laravel on the same origin as the Vue app.
