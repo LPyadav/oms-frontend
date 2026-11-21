@@ -27,13 +27,13 @@ The Vue view uses the relative URL `/api/health`. Vite proxies `/api` requests f
 
 ## Project structure
 
-| File | Responsibility |
-| --- | --- |
-| `src/main.js` | Starts Vue and registers Pinia and Vue Router. |
-| `src/router/index.js` | Maps the home route to the connection screen. |
-| `src/views/ConnectionCheckView.vue` | Shows connection status and handles retry. |
-| `vite.config.js` | Configures the local dev server and API proxy. |
-| `vitest.config.js` | Configures the Vue test environment. |
+| File                                | Responsibility                                 |
+| ----------------------------------- | ---------------------------------------------- |
+| `src/main.js`                       | Starts Vue and registers Pinia and Vue Router. |
+| `src/router/index.js`               | Maps the home route to the connection screen.  |
+| `src/views/ConnectionCheckView.vue` | Shows connection status and handles retry.     |
+| `vite.config.js`                    | Configures the local dev server and API proxy. |
+| `vitest.config.js`                  | Configures the Vue test environment.           |
 
 ## Development checks
 

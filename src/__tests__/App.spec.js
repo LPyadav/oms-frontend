@@ -24,9 +24,7 @@ it('shows API connected on success', async () => {
 })
 
 it('reconnects when the user retries a failed request', async () => {
-  const fetchMock = vi.fn()
-    .mockResolvedValueOnce({ ok: false })
-    .mockResolvedValueOnce(success)
+  const fetchMock = vi.fn().mockResolvedValueOnce({ ok: false }).mockResolvedValueOnce(success)
   const page = mountView(fetchMock)
 
   await vi.waitFor(() => expect(page.textContent).toContain('API unavailable'))
