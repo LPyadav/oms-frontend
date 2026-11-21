@@ -1,9 +1,10 @@
 <script setup>
 import { RouterView } from 'vue-router'
+import { VApp } from 'vuetify/components/VApp'
 </script>
 
 <template>
-  <RouterView />
+  <VApp>
+    <RouterView />
+  </VApp>
 </template>
-
-<style scoped></style>
