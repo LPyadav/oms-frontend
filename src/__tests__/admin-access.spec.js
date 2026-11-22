@@ -8,6 +8,7 @@ vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
 vi.mock('../views/AccessDeniedView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
+vi.mock('../views/customers/CustomerDirectoryView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -85,6 +86,35 @@ it.each([
     rememberAccount(roles, permissions)
 
     await router.push('/admin/roles')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it('sends a signed-out visitor from the customer directory to login', async () => {
+  await router.push('/catalog/customers')
+
+  expect(router.currentRoute.value.name).toBe('login')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each([
+  { roles: ['admin'], permissions: ['customers.view'], destination: 'catalog-customers' },
+  { roles: ['manager'], permissions: ['customers.view'], destination: 'catalog-customers' },
+  { roles: ['catalog-reader'], permissions: ['customers.view'], destination: 'catalog-customers' },
+  {
+    roles: ['staff'],
+    permissions: ['customers.view.assigned-orders'],
+    destination: 'access-denied',
+  },
+  { roles: ['admin'], permissions: ['users.manage', 'roles.manage'], destination: 'access-denied' },
+])(
+  'checks customer directory access for $roles with $permissions',
+  async ({ roles, permissions, destination }) => {
+    rememberAccount(roles, permissions)
+
+    await router.push('/catalog/customers')
 
     expect(router.currentRoute.value.name).toBe(destination)
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])

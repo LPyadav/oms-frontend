@@ -3,6 +3,8 @@ import { AUTH_STATUS } from '../constants/auth'
 import { useAuthStore } from '../stores/auth'
 import { getSignedInRouteName } from './signedInRoute'
 
+const workspaceLayout = () => import('../layouts/AdminLayout.vue')
+
 export function createAppRouter(history = createWebHistory(import.meta.env.BASE_URL)) {
   const router = createRouter({
     history,
@@ -20,21 +22,35 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       },
       {
         path: '/admin',
-        component: () => import('../layouts/AdminLayout.vue'),
+        component: workspaceLayout,
         redirect: { name: 'admin-users' },
-        meta: { requiresAuth: true },
+        meta: { requiresAuth: true, sectionTitle: 'Administration' },
         children: [
           {
             path: 'users',
             name: 'admin-users',
             component: () => import('../views/admin/UserDirectoryView.vue'),
-            meta: { adminTitle: 'Users', requiresUserManagement: true },
+            meta: { pageTitle: 'Users', requiresUserManagement: true },
           },
           {
             path: 'roles',
             name: 'admin-roles',
             component: () => import('../views/admin/RolePermissionsView.vue'),
-            meta: { adminTitle: 'Roles & permissions', requiresRoleManagement: true },
+            meta: { pageTitle: 'Roles & permissions', requiresRoleManagement: true },
+          },
+        ],
+      },
+      {
+        path: '/catalog',
+        component: workspaceLayout,
+        redirect: { name: 'catalog-customers' },
+        meta: { requiresAuth: true, sectionTitle: 'Catalog' },
+        children: [
+          {
+            path: 'customers',
+            name: 'catalog-customers',
+            component: () => import('../views/customers/CustomerDirectoryView.vue'),
+            meta: { pageTitle: 'Customers', requiresCustomerView: true },
           },
         ],
       },
@@ -63,7 +79,8 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     if (requiresAuth && !auth.isAuthenticated) return { name: 'login', replace: true }
     if (
       (to.meta.requiresUserManagement && !auth.canManageUsers) ||
-      (to.meta.requiresRoleManagement && !auth.canManageRoles)
+      (to.meta.requiresRoleManagement && !auth.canManageRoles) ||
+      (to.meta.requiresCustomerView && !auth.canViewCustomers)
     ) {
       return { name: 'access-denied', replace: true }
     }

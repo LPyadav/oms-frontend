@@ -21,6 +21,12 @@ const mobileNavigationOpen = ref(false)
 const menuButton = useTemplateRef('menuButton')
 const closeButton = useTemplateRef('closeButton')
 const contentScroll = useTemplateRef('contentScroll')
+const sectionTitle = computed(() => route.meta.sectionTitle)
+const accountRole = computed(() => {
+  const roles = auth.user?.roles ?? []
+  const role = roles.find((role) => role.toLowerCase() === 'admin') ?? roles[0]
+  return role ? role.charAt(0).toUpperCase() + role.slice(1) : ''
+})
 
 const drawerOpen = computed({
   get: () => mdAndUp.value || mobileNavigationOpen.value,
@@ -64,7 +70,7 @@ function focusMain() {
     <VNavigationDrawer
       id="admin-navigation"
       v-model="drawerOpen"
-      aria-label="Administration"
+      :aria-label="sectionTitle"
       :mobile="!mdAndUp"
       :permanent="mdAndUp"
       :temporary="!mdAndUp"
@@ -81,7 +87,7 @@ function focusMain() {
           </VAvatar>
           <div>
             <strong>OMS</strong>
-            <span>Administration</span>
+            <span>{{ sectionTitle }}</span>
           </div>
           <VBtn
             v-if="!mdAndUp"
@@ -89,7 +95,7 @@ function focusMain() {
             class="ms-auto"
             variant="text"
             :icon="aliases.close"
-            aria-label="Close administration menu"
+            :aria-label="`Close ${sectionTitle.toLowerCase()} menu`"
             @click="mobileNavigationOpen = false"
           />
         </div>
@@ -144,6 +150,14 @@ function focusMain() {
             </svg>
           </template>
         </VListItem>
+        <VListItem
+          v-if="auth.canViewCustomers"
+          :to="{ name: 'catalog-customers' }"
+          :prepend-icon="aliases.search"
+          title="Customers"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
       </VList>
 
       <template #append>
@@ -166,19 +180,19 @@ function focusMain() {
             ref="menuButton"
             :icon="aliases.menu"
             variant="text"
-            aria-label="Open administration menu"
+            :aria-label="`Open ${sectionTitle.toLowerCase()} menu`"
             aria-controls="admin-navigation"
             :aria-expanded="mobileNavigationOpen"
             @click="mobileNavigationOpen = true"
           />
-          <span class="admin-location-parent">Administration</span>
+          <span class="admin-location-parent">{{ sectionTitle }}</span>
           <VIcon
             class="admin-location-parent"
             :icon="aliases.next"
             size="small"
             aria-hidden="true"
           />
-          <strong>{{ route.meta.adminTitle }}</strong>
+          <strong>{{ route.meta.pageTitle }}</strong>
         </div>
 
         <div v-if="auth.user" class="admin-account" role="group" aria-label="Signed-in account">
@@ -193,7 +207,7 @@ function focusMain() {
           </VAvatar>
           <div class="account-label">
             <strong>{{ auth.user.name }}</strong>
-            <span>Admin</span>
+            <span v-if="accountRole">{{ accountRole }}</span>
           </div>
         </div>
       </div>
@@ -205,7 +219,7 @@ function focusMain() {
         ref="contentScroll"
         class="admin-scroll-region"
         role="region"
-        aria-label="Administration content"
+        :aria-label="sectionTitle + ' content'"
         tabindex="0"
       >
         <div class="admin-frame">
