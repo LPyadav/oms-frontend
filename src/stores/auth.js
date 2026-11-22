@@ -68,6 +68,12 @@ export const useAuthStore = defineStore('auth', () => {
     () => isAdmin.value && user.value.permissions?.includes(AUTH_PERMISSION.MANAGE_ROLES) === true,
   )
   const canAssignUserRoles = computed(() => canManageUsers.value && canManageRoles.value)
+  const canViewAccessAudit = computed(
+    () =>
+      isAuthenticated.value &&
+      user.value?.roles.includes(AUTH_ROLE.ADMIN) === true &&
+      user.value.permissions.includes(AUTH_PERMISSION.VIEW_ACCESS_AUDIT),
+  )
   const canViewCustomers = computed(
     () => isAuthenticated.value && user.value?.permissions.includes('customers.view') === true,
   )
@@ -286,6 +292,7 @@ export const useAuthStore = defineStore('auth', () => {
     canManageUsers,
     canManageRoles,
     canAssignUserRoles,
+    canViewAccessAudit,
     canViewCustomers,
     canManageCustomers,
     canViewProducts,

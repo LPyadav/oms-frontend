@@ -42,6 +42,12 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             component: () => import('../views/admin/RolePermissionsView.vue'),
             meta: { pageTitle: 'Roles & permissions', requiresRoleManagement: true },
           },
+          {
+            path: 'access-audit',
+            name: 'admin-access-audit',
+            component: () => import('../views/admin/AccessAuditView.vue'),
+            meta: { pageTitle: 'Access audit', requiresAccessAudit: true },
+          },
         ],
       },
       {
@@ -96,6 +102,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     if (
       (to.meta.requiresUserManagement && !auth.canManageUsers) ||
       (to.meta.requiresRoleManagement && !auth.canManageRoles) ||
+      (to.meta.requiresAccessAudit && !auth.canViewAccessAudit) ||
       (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
       (to.meta.requiresProductView && !auth.canViewProducts)
     ) {

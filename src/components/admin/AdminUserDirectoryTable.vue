@@ -10,6 +10,7 @@ import { getAccountInitials } from '../../utils/accountInitials'
 defineProps({
   accounts: { type: Array, required: true },
   disabled: Boolean,
+  loadingAccountId: { type: Number, default: null },
 })
 
 const emit = defineEmits(['manage'])
@@ -76,6 +77,7 @@ const emit = defineEmits(['manage'])
             size="small"
             color="primary"
             :disabled="disabled"
+            :loading="loadingAccountId === account.id"
             @click="emit('manage', account, $event)"
           >
             Manage
