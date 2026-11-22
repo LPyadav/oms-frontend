@@ -18,6 +18,8 @@ export default createVuetify({
           'on-background': '#15332B',
           'on-surface': '#15332B',
           'on-primary': '#FFFFFF',
+          'admin-navigation': '#102B24',
+          'on-admin-navigation': '#F2FBF7',
         },
       },
     },

@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 
 const profile = { id: 28, name: 'Alex Morgan', email: 'alex@example.com' }
 const admin = { ...profile, roles: ['admin'], permissions: ['users.manage'] }
+const roleAdmin = { ...admin, permissions: [...admin.permissions, 'roles.manage'] }
 
 function success(data) {
   return Response.json({ success: true, data })
@@ -38,6 +39,39 @@ describe('OMS authentication', () => {
     vi.unstubAllGlobals()
   })
 
+  it('replaces cached grants using the current profile after a self-assignment', async () => {
+    const updated = { ...profile, roles: ['manager'], permissions: [] }
+    fetchMock
+      .mockResolvedValueOnce(loginResponse())
+      .mockResolvedValueOnce(success({ user: roleAdmin }))
+      .mockResolvedValueOnce(success({ user: updated }))
+    const auth = useAuthStore()
+    await auth.login({ email: profile.email, password: 'example-password' })
+    expect(auth.canAssignUserRoles).toBe(true)
+
+    await expect(auth.refreshCurrentUser()).resolves.toEqual(updated)
+
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.canManageUsers).toBe(false)
+    expect(auth.canAssignUserRoles).toBe(false)
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/me', expect.any(Object))
+  })
+
+  it('clears cached authorization if the profile cannot be refreshed after a write', async () => {
+    fetchMock
+      .mockResolvedValueOnce(loginResponse())
+      .mockResolvedValueOnce(success({ user: roleAdmin }))
+      .mockRejectedValueOnce(new TypeError('Offline'))
+    const auth = useAuthStore()
+    await auth.login({ email: profile.email, password: 'example-password' })
+
+    await expect(auth.refreshCurrentUser()).resolves.toBeNull()
+
+    expect(auth.canAssignUserRoles).toBe(false)
+    expect(auth.isAuthenticated).toBe(false)
+    expect(sessionStorage.getItem('oms.session')).toBeNull()
+  })
+
   it('confirms the current profile before gaining admin access and restores it on reload', async () => {
     fetchMock.mockResolvedValueOnce(loginResponse()).mockResolvedValueOnce(success({ user: admin }))
     const auth = useAuthStore()
@@ -63,6 +97,7 @@ describe('OMS authentication', () => {
     )
     expect(auth.user).toEqual(admin)
     expect(auth.canManageUsers).toBe(true)
+    expect(auth.canAssignUserRoles).toBe(false)
 
     disposePinia(pinia)
     pinia = createPinia()

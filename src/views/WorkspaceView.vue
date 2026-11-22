@@ -6,7 +6,7 @@ import { VBtn } from 'vuetify/components/VBtn'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
-const { isAuthenticated, user } = storeToRefs(auth)
+const { canManageUsers, isAuthenticated, user } = storeToRefs(auth)
 const heading = useTemplateRef('workspaceHeading')
 const signingOut = ref(false)
 const feedback = ref('')
@@ -39,6 +39,16 @@ async function signOut() {
       <VAlert v-if="feedback" type="error" :icon="false" variant="tonal" role="alert">
         {{ feedback }}
       </VAlert>
+      <VBtn
+        v-if="canManageUsers"
+        :to="{ name: 'admin-users' }"
+        class="text-none"
+        color="primary"
+        variant="flat"
+        height="48"
+      >
+        Manage users
+      </VBtn>
       <VBtn
         class="text-none"
         type="button"

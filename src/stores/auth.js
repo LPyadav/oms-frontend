@@ -27,6 +27,26 @@ function expiredSession() {
   return new ApiError('Your session has ended. Sign in again.', { status: 401 })
 }
 
+function normalizeProfile(profile) {
+  if (
+    !Number.isInteger(profile?.id) ||
+    typeof profile.name !== 'string' ||
+    typeof profile.email !== 'string'
+  ) {
+    throw new ApiError('The server did not return a user profile.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+
+  return {
+    ...profile,
+    roles: Array.isArray(profile.roles)
+      ? profile.roles.filter((role) => typeof role === 'string')
+      : [],
+    permissions: Array.isArray(profile.permissions) ? profile.permissions : [],
+  }
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const status = ref(AUTH_STATUS.IDLE)
   const user = shallowRef(null)
@@ -37,6 +57,9 @@ export const useAuthStore = defineStore('auth', () => {
       isAuthenticated.value &&
       user.value?.roles.some((role) => role.toLowerCase() === 'admin') === true &&
       user.value.permissions?.includes('users.manage') === true,
+  )
+  const canAssignUserRoles = computed(
+    () => canManageUsers.value && user.value?.permissions.includes('roles.manage') === true,
   )
 
   let session = readSession()
@@ -93,24 +116,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       if (session !== current || !activeSession()) throw expiredSession()
 
-      const profile = data?.user
-      if (
-        !Number.isInteger(profile?.id) ||
-        typeof profile.name !== 'string' ||
-        typeof profile.email !== 'string'
-      ) {
-        throw new ApiError('The server did not return a user profile.', {
-          code: 'INVALID_RESPONSE',
-        })
-      }
-
-      user.value = {
-        ...profile,
-        roles: Array.isArray(profile.roles)
-          ? profile.roles.filter((role) => typeof role === 'string')
-          : [],
-        permissions: Array.isArray(profile.permissions) ? profile.permissions : [],
-      }
+      user.value = normalizeProfile(data?.user)
       status.value = AUTH_STATUS.AUTHENTICATED
       return user.value
     } catch (failure) {
@@ -198,6 +204,23 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function refreshCurrentUser() {
+    const current = activeSession()
+    if (!current || !isAuthenticated.value) return null
+
+    try {
+      const { data } = await apiRequest('/api/me', { token: current.token })
+      if (session !== current || !activeSession()) return null
+
+      user.value = normalizeProfile(data?.user)
+      return user.value
+    } catch {
+      // A confirmed self-assignment can invalidate the cached authorization.
+      if (session === current) clearSession()
+      return null
+    }
+  }
+
   async function signOut(current) {
     try {
       await apiRequest('/api/logout', { method: 'POST', token: current.token })
@@ -229,10 +252,12 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     canManageUsers,
+    canAssignUserRoles,
     initialize,
     login,
     logout,
     request,
+    refreshCurrentUser,
     clearSession,
   }
 })

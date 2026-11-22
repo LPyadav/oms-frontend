@@ -5,8 +5,10 @@ import { createAppRouter } from '../router'
 import { useAuthStore } from '../stores/auth'
 
 vi.mock('../views/ConnectionCheckView.vue', () => ({ default: {} }))
+vi.mock('../layouts/AdminLayout.vue', () => ({ default: {} }))
 vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
 vi.mock('../views/WorkspaceView.vue', () => ({ default: {} }))
+vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 
 const sessionKey = 'oms.session'
 const user = { id: 1, name: 'Review User', email: 'review@example.test' }
@@ -24,8 +26,8 @@ function rememberSession() {
   )
 }
 
-function profileResponse() {
-  return Response.json({ success: true, data: { user } })
+function profileResponse(profile = user) {
+  return Response.json({ success: true, data: { user: profile } })
 }
 
 beforeEach(() => {
@@ -60,6 +62,24 @@ it.each(['/workspace', '/login'])('restores a verified session before opening %s
   expect(router.currentRoute.value.name).toBe('workspace')
   expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
 })
+
+it.each([
+  { role: 'admin', permissions: ['users.manage'], destination: 'admin-users' },
+  { role: 'admin', permissions: [], destination: 'workspace' },
+  { role: 'manager', permissions: ['users.manage'], destination: 'workspace' },
+  { role: 'staff', permissions: [], destination: 'workspace' },
+])(
+  'lands a verified $role with $permissions at $destination from login',
+  async ({ role, permissions, destination }) => {
+    rememberSession()
+    fetchMock.mockResolvedValueOnce(profileResponse({ ...user, roles: [role], permissions }))
+
+    await router.push('/login')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
 
 it.each([
   ['the timer runs', () => vi.advanceTimersByTimeAsync(60_000)],
