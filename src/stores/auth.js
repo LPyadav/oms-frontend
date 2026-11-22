@@ -88,6 +88,13 @@ export const useAuthStore = defineStore('auth', () => {
       (isAuthenticated.value && user.value?.permissions.includes('orders.view.assigned') === true),
   )
 
+  const canEditOrders = computed(
+    () => canViewAllOrders.value && user.value.permissions.includes('orders.update'),
+  )
+  const canDeleteOrders = computed(
+    () =>
+      canViewAllOrders.value && isAdmin.value && user.value.permissions.includes('orders.delete'),
+  )
   const canCreateOrders = computed(
     () => canViewAllOrders.value && user.value.permissions.includes('orders.create'),
   )
@@ -297,6 +304,8 @@ export const useAuthStore = defineStore('auth', () => {
     canViewOrders,
     canViewAllOrders,
     canCreateOrders,
+    canEditOrders,
+    canDeleteOrders,
     canAssignOrders,
     canAddOrderNote,
     initialize,

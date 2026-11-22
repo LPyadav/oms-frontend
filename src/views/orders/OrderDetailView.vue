@@ -1,14 +1,21 @@
 <script setup>
-import { computed, nextTick, onScopeDispose, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onScopeDispose, ref, useTemplateRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import OrderDeleteDialog from '../../components/orders/OrderDeleteDialog.vue'
 import OrderItemsCard from '../../components/orders/OrderItemsCard.vue'
 import { useOrderDetail } from '../../composables/useOrderDetail'
-import { ORDER_PRIORITY, ORDER_STATUS } from '../../constants/orders'
+import {
+  isOrderDeletable,
+  isOrderEditable,
+  ORDER_PRIORITY,
+  ORDER_STATUS,
+} from '../../constants/orders'
 import { useAuthStore } from '../../stores/auth'
 import { formatOrderDate, formatOrderTimestamp, formatOrderTotal } from '../../utils/orderDisplay'
 import { orderActivity, orderTimeline } from '../../utils/orderHistory'
@@ -18,6 +25,9 @@ const props = defineProps({
 })
 
 const auth = useAuthStore()
+const router = useRouter()
+const deleteOpen = ref(false)
+let deleteTrigger
 const heading = useTemplateRef('heading')
 const controller = new AbortController()
 const { order, error, loading, load } = useOrderDetail({
@@ -25,6 +35,8 @@ const { order, error, loading, load } = useOrderDetail({
   signal: controller.signal,
 })
 
+const canEdit = computed(() => auth.canEditOrders && isOrderEditable(order.value?.status))
+const canDelete = computed(() => auth.canDeleteOrders && isOrderDeletable(order.value?.status))
 const timeline = computed(() => (order.value ? orderTimeline(order.value) : []))
 const activity = computed(() => (order.value ? orderActivity(order.value) : []))
 const errorMessage = computed(() => {
@@ -35,10 +47,40 @@ const errorMessage = computed(() => {
 })
 const canRetry = computed(() => error.value && ![403, 404].includes(error.value.status))
 
+function openDelete(event) {
+  deleteTrigger = event.currentTarget
+  deleteOpen.value = true
+}
+
+async function closeDelete() {
+  deleteOpen.value = false
+  const trigger = deleteTrigger
+  deleteTrigger = null
+  await nextTick()
+  const target = trigger?.isConnected ? trigger : heading.value
+  target?.focus({ preventScroll: true })
+}
+
+async function reloadAfterDelete() {
+  deleteOpen.value = false
+  deleteTrigger = null
+  await load(props.orderId)
+  await nextTick()
+  heading.value?.focus({ preventScroll: true })
+}
+
+function finishDelete() {
+  deleteOpen.value = false
+  deleteTrigger = null
+  return router.replace({ name: 'orders' })
+}
+
 watch(
   () => props.orderId,
   async (id) => {
     if (!auth.canViewOrders) return
+    deleteOpen.value = false
+    deleteTrigger = null
     void load(id)
     await nextTick()
     heading.value?.focus({ preventScroll: true })
@@ -74,6 +116,20 @@ onScopeDispose(() => controller.abort())
         >
           {{ ORDER_STATUS[order.status] }}
         </VChip>
+        <div v-if="canEdit || canDelete" class="detail-actions">
+          <VBtn
+            v-if="canEdit"
+            :to="{ name: 'order-edit', params: { orderId: order.id } }"
+            color="primary"
+            variant="outlined"
+            class="text-none"
+          >
+            Edit order
+          </VBtn>
+          <VBtn v-if="canDelete" color="error" variant="text" class="text-none" @click="openDelete">
+            Delete order
+          </VBtn>
+        </div>
       </div>
     </header>
 
@@ -89,6 +145,13 @@ onScopeDispose(() => controller.abort())
     </VCard>
 
     <template v-else-if="order">
+      <OrderDeleteDialog
+        v-if="deleteOpen && canDelete"
+        :order="order"
+        @close="closeDelete"
+        @reload="reloadAfterDelete"
+        @deleted="finishDelete"
+      />
       <div class="detail-overview">
         <VCard
           tag="section"
@@ -220,6 +283,13 @@ onScopeDispose(() => controller.abort())
   align-items: center;
   gap: 10px 14px;
   margin-top: 6px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-inline-start: auto;
 }
 
 .detail-title h1 {
@@ -393,6 +463,11 @@ onScopeDispose(() => controller.abort())
 }
 
 @media (max-width: 760px) {
+  .detail-actions {
+    flex-basis: 100%;
+    margin-inline-start: 0;
+  }
+
   .detail-overview {
     grid-template-columns: minmax(0, 1fr);
   }

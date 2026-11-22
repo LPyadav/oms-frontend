@@ -77,7 +77,12 @@ defineProps({
         <dd>{{ formatOrderTotal(order.discount_total_minor, order.currency) }}</dd>
       </div>
       <div>
-        <dt>Tax</dt>
+        <dt>
+          Tax
+          <span v-if="order.order_tax_rate_basis_points != null" class="item-secondary">
+            {{ formatOrderTaxRate(order.order_tax_rate_basis_points) }} order rate
+          </span>
+        </dt>
         <dd>{{ formatOrderTotal(order.tax_total_minor, order.currency) }}</dd>
       </div>
       <div class="grand-total">

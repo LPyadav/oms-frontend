@@ -1,4 +1,4 @@
-import { ORDER_PRIORITY, ORDER_STATUS } from '../constants/orders'
+import { MAX_TAX_RATE_BASIS_POINTS, ORDER_PRIORITY, ORDER_STATUS } from '../constants/orders'
 import { ApiError } from './client'
 import { readPaginatedResource } from './pagination'
 
@@ -70,15 +70,20 @@ const isTimestamp = (value) => typeof value === 'string' && Number.isFinite(Date
 const historyEntry = (entry) => positiveInteger(entry?.id) && isTimestamp(entry.created_at)
 const actor = (value) => value === null || isParty(value)
 const nullableId = (value) => value === null || positiveInteger(value)
+const isTaxRate = (value) => nonnegativeInteger(value) && value <= MAX_TAX_RATE_BASIS_POINTS
+const isOrderTaxRate = (value) => value == null || isTaxRate(value)
+const confirmsTaxRate = (result, requested) =>
+  requested === undefined || result.order_tax_rate_basis_points === requested
 const validEntries = (values, validate) => Array.isArray(values) && values.every(validate)
 
 function isItem(item) {
   return (
     positiveInteger(item?.position) &&
+    positiveInteger(item.product_id) &&
     positiveInteger(item.quantity) &&
     namedText(item.product_name) &&
     namedText(item.product_sku) &&
-    nonnegativeInteger(item.tax_rate_basis_points) &&
+    isTaxRate(item.tax_rate_basis_points) &&
     itemMoneyFields.every((field) => nonnegativeInteger(item[field])) &&
     Number.isSafeInteger(item.item_discount_minor + item.allocated_order_discount_minor)
   )
@@ -120,6 +125,9 @@ function isSystemActivity(entry) {
 function isOrderDetail(order) {
   return (
     isOrder(order) &&
+    positiveInteger(order.version) &&
+    nonnegativeInteger(order.order_discount_minor) &&
+    isOrderTaxRate(order.order_tax_rate_basis_points) &&
     detailMoneyFields.every((field) => nonnegativeInteger(order[field])) &&
     ['email', 'phone', 'address'].every((field) => nullableText(order.customer[field])) &&
     (order.created_at === null || isTimestamp(order.created_at)) &&
@@ -132,19 +140,27 @@ function isOrderDetail(order) {
   )
 }
 
-export async function loadOrder(request, orderId, signal) {
+function orderPath(orderId) {
   const id = Number(orderId)
   if (!/^\d+$/.test(String(orderId)) || !positiveInteger(id)) {
     throw new ApiError('This order is unavailable.', { status: 404 })
   }
 
-  const response = await request(`/api/orders/${id}`, { signal })
+  return `/api/orders/${id}`
+}
+
+function readOrder(response, id) {
   const order = response?.data?.order
   if (!isOrderDetail(order) || order.id !== id) {
     throw new ApiError('The server returned invalid order details.', { code: 'INVALID_RESPONSE' })
   }
 
   return order
+}
+
+export async function loadOrder(request, orderId, signal) {
+  const response = await request(orderPath(orderId), { signal })
+  return readOrder(response, Number(orderId))
 }
 
 export function loadOrderAssigneePage(request, { page, search }, signal) {
@@ -161,10 +177,19 @@ export function loadOrderAssigneePage(request, { page, search }, signal) {
   )
 }
 
-export async function previewOrderPricing(request, { items, order_discount_minor }, signal) {
+export async function previewOrderPricing(
+  request,
+  { order_id, items, order_discount_minor, order_tax_rate_basis_points },
+  signal,
+) {
   const response = await request('/api/orders/preview', {
     method: 'POST',
-    body: { items, order_discount_minor },
+    body: {
+      ...(order_id !== undefined && { order_id }),
+      items,
+      order_discount_minor,
+      ...(order_tax_rate_basis_points !== undefined && { order_tax_rate_basis_points }),
+    },
     signal,
   })
   const pricing = response?.data?.pricing
@@ -175,13 +200,19 @@ export async function previewOrderPricing(request, { items, order_discount_minor
       nonnegativeInteger(pricing[field]),
     ) ||
     pricing.order_discount_minor !== order_discount_minor ||
+    !isOrderTaxRate(pricing.order_tax_rate_basis_points) ||
+    !confirmsTaxRate(pricing, order_tax_rate_basis_points) ||
     !validEntries(pricing.items, isItem) ||
     pricing.items.length !== items.length ||
     !pricing.items.every(
       (line, index) =>
         line.product_id === items[index].product_id &&
         line.quantity === items[index].quantity &&
-        line.item_discount_minor === items[index].item_discount_minor,
+        line.item_discount_minor === items[index].item_discount_minor &&
+        (pricing.order_tax_rate_basis_points == null ||
+          line.tax_rate_basis_points === pricing.order_tax_rate_basis_points) &&
+        (items[index].tax_rate_basis_points === undefined ||
+          line.tax_rate_basis_points === items[index].tax_rate_basis_points),
     )
   ) {
     throw new ApiError('The server returned invalid order pricing.', { code: 'INVALID_RESPONSE' })
@@ -203,4 +234,24 @@ export async function createOrder(request, body, idempotencyKey, signal) {
   }
 
   return order
+}
+
+export async function updateOrder(request, orderId, body, signal) {
+  const response = await request(orderPath(orderId), { method: 'PATCH', body, signal })
+  const order = readOrder(response, Number(orderId))
+  if (!confirmsTaxRate(order, body.order_tax_rate_basis_points)) {
+    throw new ApiError('The server did not confirm the order tax rate.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+
+  return order
+}
+
+export async function deleteOrder(request, orderId, version, signal) {
+  const params = new URLSearchParams({ expected_version: String(version) })
+  const response = await request(`${orderPath(orderId)}?${params}`, { method: 'DELETE', signal })
+  if (response?.data !== null) {
+    throw new ApiError('The server did not confirm the deletion.', { code: 'INVALID_RESPONSE' })
+  }
 }

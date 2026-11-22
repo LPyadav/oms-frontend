@@ -23,6 +23,8 @@ export const ORDER_SORT = Object.freeze({
   customer: 'Customer',
 })
 
+export const MAX_TAX_RATE_BASIS_POINTS = 10_000
+
 export const FIRST_ORDER_PAGE = Object.freeze({
   page: 1,
   search: '',
@@ -33,3 +35,11 @@ export const FIRST_ORDER_PAGE = Object.freeze({
   sort: 'order_date',
   direction: 'desc',
 })
+
+export function isOrderEditable(status) {
+  return status === 'draft' || status === 'pending'
+}
+
+export function isOrderDeletable(status) {
+  return isOrderEditable(status) || status === 'cancelled'
+}

@@ -39,6 +39,7 @@ const pricing = {
 const savedOrder = {
   ...pricing,
   id: 18,
+  version: 1,
   order_number: 'ORD-18',
   customer,
   assignee: null,
@@ -205,4 +206,39 @@ it('allows a corrected payload with a fresh key after confirmed validation failu
     body: corrected,
     idempotencyKey: 'second-attempt',
   })
+})
+
+it.each([
+  ['', undefined],
+  ['0', 0],
+  ['8.25', 825],
+  ['100.00', 10_000],
+])('serializes tax rate %j to optional exact basis points', (taxRate, expected) => {
+  const initial = draft()
+  const result = validateOrderDraft({ ...initial, items: [{ ...initial.items[0], taxRate }] })
+  const expectedItem = {
+    ...body.items[0],
+    ...(expected !== undefined && { tax_rate_basis_points: expected }),
+  }
+
+  expect(result.fields).toEqual({})
+  expect(result.body.items).toEqual([expectedItem])
+})
+
+it.each(['-1', '100.01', '8.251', '8e1'])('rejects invalid tax rate %j', (taxRate) => {
+  const initial = draft()
+  const result = validateOrderDraft({ ...initial, items: [{ ...initial.items[0], taxRate }] })
+
+  expect(result.fields).toHaveProperty('items.0.tax_rate_basis_points')
+})
+
+it('omits tax overrides when the active account cannot edit orders', () => {
+  const initial = draft()
+  const result = validateOrderDraft(
+    { ...initial, items: [{ ...initial.items[0], taxRate: '8.25' }] },
+    { allowTaxOverride: false },
+  )
+
+  expect(result.fields).toEqual({})
+  expect(result.body.items).toEqual(body.items)
 })

@@ -82,6 +82,13 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
                 meta: { pageTitle: 'Create order', requiresOrderCreate: true },
               },
               {
+                path: ':orderId/edit',
+                name: 'order-edit',
+                component: () => import('../views/orders/EditOrderView.vue'),
+                props: true,
+                meta: { pageTitle: 'Edit order', requiresOrderEdit: true },
+              },
+              {
                 path: ':orderId',
                 name: 'order-detail',
                 component: () => import('../views/orders/OrderDetailView.vue'),
@@ -127,7 +134,8 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
       (to.meta.requiresProductView && !auth.canViewProducts) ||
       (to.meta.requiresOrderView && !auth.canViewOrders) ||
-      (to.meta.requiresOrderCreate && !auth.canCreateOrders)
+      (to.meta.requiresOrderCreate && !auth.canCreateOrders) ||
+      (to.meta.requiresOrderEdit && !auth.canEditOrders)
     ) {
       return { name: 'access-denied', replace: true }
     }

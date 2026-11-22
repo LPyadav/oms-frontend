@@ -11,6 +11,7 @@ const actor = { id: 3, name: 'Maya Chen' }
 const assignee = { id: 5, name: 'Mira Lane' }
 const item = {
   position: 1,
+  product_id: 3,
   product_name: 'Packing tape',
   product_sku: 'PK-100',
   quantity: 2,
@@ -33,6 +34,8 @@ function orderDetail(overrides = {}) {
     priority: 'normal',
     currency: 'USD',
     subtotal_minor: 700,
+    version: 1,
+    order_discount_minor: 50,
     discount_total_minor: 100,
     tax_total_minor: 108,
     grand_total_minor: 708,
