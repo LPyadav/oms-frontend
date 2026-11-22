@@ -64,7 +64,7 @@ function focusMain() {
 </script>
 
 <template>
-  <VLayout v-if="auth.isAuthenticated" class="admin-layout" height="100dvh">
+  <VLayout v-if="auth.isAuthenticated" class="admin-layout">
     <a class="skip-link" href="#admin-content" @click.prevent="focusMain">Skip to content</a>
 
     <VNavigationDrawer
@@ -240,6 +240,8 @@ function focusMain() {
 
 <style scoped>
 .admin-layout {
+  flex: 1 1 0;
+  min-block-size: 0;
   --admin-frame-width: 1184px;
   --admin-frame-gutter: clamp(16px, 2.8vw, 32px);
   background: rgb(var(--v-theme-background));
