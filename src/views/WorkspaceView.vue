@@ -6,8 +6,15 @@ import { VBtn } from 'vuetify/components/VBtn'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
-const { canManageUsers, canManageRoles, canViewCustomers, canViewProducts, isAuthenticated, user } =
-  storeToRefs(auth)
+const {
+  canManageUsers,
+  canManageRoles,
+  canViewCustomers,
+  canViewProducts,
+  canViewOrders,
+  isAuthenticated,
+  user,
+} = storeToRefs(auth)
 const heading = useTemplateRef('workspaceHeading')
 const signingOut = ref(false)
 const feedback = ref('')
@@ -79,6 +86,16 @@ async function signOut() {
         height="48"
       >
         Browse products
+      </VBtn>
+      <VBtn
+        v-if="canViewOrders"
+        :to="{ name: 'orders' }"
+        class="text-none"
+        color="primary"
+        :variant="canManageUsers || canViewCustomers || canViewProducts ? 'outlined' : 'flat'"
+        height="48"
+      >
+        Browse orders
       </VBtn>
       <VBtn
         class="text-none"

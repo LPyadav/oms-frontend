@@ -61,6 +61,19 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         ],
       },
       {
+        path: '/orders',
+        component: workspaceLayout,
+        meta: { requiresAuth: true, sectionTitle: 'Order management' },
+        children: [
+          {
+            path: '',
+            name: 'orders',
+            component: () => import('../views/orders/OrderDirectoryView.vue'),
+            meta: { pageTitle: 'Orders', requiresOrderView: true },
+          },
+        ],
+      },
+      {
         path: '/access-denied',
         name: 'access-denied',
         component: () => import('../views/AccessDeniedView.vue'),
@@ -93,7 +106,8 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       (to.meta.requiresUserManagement && !auth.canManageUsers) ||
       (to.meta.requiresRoleManagement && !auth.canManageRoles) ||
       (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
-      (to.meta.requiresProductView && !auth.canViewProducts)
+      (to.meta.requiresProductView && !auth.canViewProducts) ||
+      (to.meta.requiresOrderView && !auth.canViewOrders)
     ) {
       return { name: 'access-denied', replace: true }
     }

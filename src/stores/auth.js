@@ -79,6 +79,14 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageProducts = computed(
     () => isAdmin.value && user.value.permissions.includes('products.manage'),
   )
+  const canViewAllOrders = computed(
+    () => isAuthenticated.value && user.value?.permissions.includes('orders.view.any') === true,
+  )
+  const canViewOrders = computed(
+    () =>
+      canViewAllOrders.value ||
+      (isAuthenticated.value && user.value?.permissions.includes('orders.view.assigned') === true),
+  )
 
   let session = readSession()
   let expiryTimer
@@ -276,6 +284,8 @@ export const useAuthStore = defineStore('auth', () => {
     canManageCustomers,
     canViewProducts,
     canManageProducts,
+    canViewOrders,
+    canViewAllOrders,
     initialize,
     login,
     logout,

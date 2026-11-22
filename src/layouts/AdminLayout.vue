@@ -151,6 +151,14 @@ function focusMain() {
           </template>
         </VListItem>
         <VListItem
+          v-if="auth.canViewOrders"
+          :to="{ name: 'orders' }"
+          :prepend-icon="aliases.calendar"
+          title="Orders"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
           v-if="auth.canViewCustomers"
           :to="{ name: 'catalog-customers' }"
           :prepend-icon="aliases.search"

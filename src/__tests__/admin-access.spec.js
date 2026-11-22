@@ -10,6 +10,7 @@ vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
 vi.mock('../views/customers/CustomerDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/products/ProductDirectoryView.vue', () => ({ default: {} }))
+vi.mock('../views/orders/OrderDirectoryView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -160,6 +161,32 @@ it.each([
   rememberAccount(['staff'], permissions)
 
   await router.push('/catalog')
+
+  expect(router.currentRoute.value.name).toBe(destination)
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})
+
+it('redirects a guest from Orders before making a list request', async () => {
+  await router.push('/orders')
+
+  expect(router.currentRoute.value.name).toBe('login')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each([
+  { roles: ['admin'], permissions: ['orders.view.any'], destination: 'orders' },
+  { roles: ['manager'], permissions: ['orders.view.any'], destination: 'orders' },
+  { roles: ['staff'], permissions: ['orders.view.assigned'], destination: 'orders' },
+  {
+    roles: ['staff'],
+    permissions: ['orders.status.update.assigned'],
+    destination: 'access-denied',
+  },
+  { roles: ['admin'], permissions: ['orders.create'], destination: 'access-denied' },
+])('gates the order directory on $permissions', async ({ roles, permissions, destination }) => {
+  rememberAccount(roles, permissions)
+
+  await router.push('/orders')
 
   expect(router.currentRoute.value.name).toBe(destination)
   expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
