@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 import { ApiError, apiRequest } from '../api/client'
-import { AUTH_STATUS } from '../constants/auth'
+import { AUTH_PERMISSION, AUTH_ROLE, AUTH_STATUS } from '../constants/auth'
 
 const storageKey = 'oms.session'
 const maxTimeout = 2_147_483_647
@@ -39,8 +39,8 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageUsers = computed(
     () =>
       isAuthenticated.value &&
-      user.value?.roles.some((role) => role.toLowerCase() === 'admin') === true &&
-      user.value.permissions?.includes('users.manage') === true,
+      user.value?.roles.some((role) => role.toLowerCase() === AUTH_ROLE.ADMIN) === true &&
+      user.value.permissions?.includes(AUTH_PERMISSION.MANAGE_USERS) === true,
   )
 
   let session = readSession()

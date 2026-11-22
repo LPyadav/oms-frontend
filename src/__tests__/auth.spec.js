@@ -76,20 +76,26 @@ describe('OMS authentication', () => {
   })
 
   it.each([
-    [[], ['users.manage']],
-    [['admin'], []],
-    [['manager'], ['orders.assign']],
-  ])('denies admin features with roles %j and permissions %j', async (roles, permissions) => {
-    fetchMock
-      .mockResolvedValueOnce(loginResponse())
-      .mockResolvedValueOnce(success({ user: { ...profile, roles, permissions } }))
-    const auth = useAuthStore()
+    [['AdMiN'], ['users.manage'], true],
+    [[], ['users.manage'], false],
+    [['admin'], [], false],
+    [['admin'], ['USERS.MANAGE'], false],
+    [['manager'], ['users.manage'], false],
+    [['manager'], ['orders.assign'], false],
+  ])(
+    'checks admin access with roles %j and permissions %j as %s',
+    async (roles, permissions, expected) => {
+      fetchMock
+        .mockResolvedValueOnce(loginResponse())
+        .mockResolvedValueOnce(success({ user: { ...profile, roles, permissions } }))
+      const auth = useAuthStore()
 
-    await auth.login({ email: profile.email, password: 'test-password' })
+      await auth.login({ email: profile.email, password: 'test-password' })
 
-    expect(auth.isAuthenticated).toBe(true)
-    expect(auth.canManageUsers).toBe(false)
-  })
+      expect(auth.isAuthenticated).toBe(true)
+      expect(auth.canManageUsers).toBe(expected)
+    },
+  )
 
   it('retries a transient profile failure without submitting credentials again', async () => {
     fetchMock
