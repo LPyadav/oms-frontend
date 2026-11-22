@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 import { ApiError, apiRequest } from '../api/client'
-import { AUTH_STATUS } from '../constants/auth'
+import { AUTH_PERMISSION, AUTH_ROLE, AUTH_STATUS } from '../constants/auth'
 
 const storageKey = 'oms.session'
 const maxTimeout = 2_147_483_647
+const expiryWarningWindow = 5 * 60_000
 
 function isActive(session) {
   return (
@@ -51,17 +52,20 @@ export const useAuthStore = defineStore('auth', () => {
   const status = ref(AUTH_STATUS.IDLE)
   const user = shallowRef(null)
   const error = shallowRef(null)
+  const signedOutExplicitly = ref(false)
+  const expiresSoon = ref(false)
   const isAuthenticated = computed(() => status.value === AUTH_STATUS.AUTHENTICATED)
+  const sessionExpiresSoon = computed(() => isAuthenticated.value && expiresSoon.value)
   const isAdmin = computed(
     () =>
       isAuthenticated.value &&
-      user.value?.roles.some((role) => role.toLowerCase() === 'admin') === true,
+      user.value?.roles.some((role) => role.toLowerCase() === AUTH_ROLE.ADMIN) === true,
   )
   const canManageUsers = computed(
-    () => isAdmin.value && user.value.permissions?.includes('users.manage') === true,
+    () => isAdmin.value && user.value.permissions?.includes(AUTH_PERMISSION.MANAGE_USERS) === true,
   )
   const canManageRoles = computed(
-    () => isAdmin.value && user.value.permissions?.includes('roles.manage') === true,
+    () => isAdmin.value && user.value.permissions?.includes(AUTH_PERMISSION.MANAGE_ROLES) === true,
   )
   const canAssignUserRoles = computed(() => canManageUsers.value && canManageRoles.value)
 
@@ -73,20 +77,27 @@ export const useAuthStore = defineStore('auth', () => {
 
   function scheduleExpiry(current) {
     const remaining = Math.max(0, current.expiresAt - Date.now())
+    const untilWarning = remaining - expiryWarningWindow
+    expiresSoon.value = remaining > 0 && untilWarning <= 0
+
     expiryTimer = setTimeout(
       () => {
         if (session !== current) return
         if (isActive(current)) scheduleExpiry(current)
         else clearSession()
       },
-      Math.min(remaining, maxTimeout),
+      Math.min(untilWarning > 0 ? untilWarning : remaining, maxTimeout),
     )
   }
 
   function saveSession(next) {
     session = next
     clearTimeout(expiryTimer)
-    if (next) scheduleExpiry(next)
+    expiresSoon.value = false
+    if (next) {
+      signedOutExplicitly.value = false
+      scheduleExpiry(next)
+    }
 
     try {
       if (next) globalThis.sessionStorage.setItem(storageKey, JSON.stringify(next))
@@ -97,6 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearSession() {
+    if (session !== null) signedOutExplicitly.value = logoutRequest?.session === session
     saveSession(null)
     user.value = null
     error.value = null
@@ -254,6 +266,8 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     error,
     isAuthenticated,
+    sessionExpiresSoon,
+    signedOutExplicitly,
     canManageUsers,
     canManageRoles,
     canAssignUserRoles,

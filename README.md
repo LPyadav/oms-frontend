@@ -1,6 +1,6 @@
 # OMS Frontend
 
-Vue single-page application for the Order Management System. The Laravel API lives in the separate `oms-backend` repository. The Foundation module adds a home screen that checks the API connection and lets the user retry a failed request.
+Vue single-page application for the Order Management System. The Laravel API lives in the separate `oms-backend` repository. The app directs guests to sign-in. Signed-in users land in the Admin Users directory if they have user-management access, or in Workspace otherwise. The API connection diagnostic is available at `/dev/health`.
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ npm run dev
 
 ## Verify the API connection
 
-1. Open [the OMS frontend](http://127.0.0.1:5173/). The connection screen shows **API connected** once Laravel responds.
+1. Open [the API connection screen](http://127.0.0.1:5173/dev/health). The connection screen shows **API connected** once Laravel responds.
 2. Open [the health endpoint through Vite](http://127.0.0.1:5173/api/health). It should return HTTP `200` with `data.status` set to `"ok"`. The connection screen also accepts the top-level `status` used by the Foundation backend.
 3. If the screen shows **API unavailable**, check that Laravel is listening on port `8000`, then select **Try again**.
 
@@ -69,11 +69,12 @@ Epic 01 adds the OMS sign-in flow, bearer-token session management, and a protec
 
 ### Routes
 
-| Route        | Access              | Behavior                                                                                |
-| ------------ | ------------------- | --------------------------------------------------------------------------------------- |
-| `/`          | Public              | Checks API health and offers a retry when the API is unavailable.                       |
-| `/login`     | Guests              | Shows the Vuetify sign-in form and sends users with a verified session to `/workspace`. |
-| `/workspace` | Authenticated users | Shows the verified account and provides sign-out. Guests are redirected to `/login`.    |
+| Route         | Access              | Behavior                                                                                                    |
+| ------------- | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `/`           | Public              | Opens sign-in for guests or the default signed-in page for verified sessions.                               |
+| `/dev/health` | Public              | Checks API health and offers a retry when the API is unavailable.                                           |
+| `/login`      | Guests              | Shows the sign-in form. A verified session resumes a valid protected destination or opens its default page. |
+| `/workspace`  | Authenticated users | Shows the verified account and provides sign-out. Guests are redirected to `/login`.                        |
 
 ### Session and API behavior
 
@@ -84,7 +85,13 @@ Epic 01 adds the OMS sign-in flow, bearer-token session management, and a protec
 | `POST /api/logout` | Sends the bearer token for revocation. Successful logout clears the local session and redirects to sign-in. A transient logout failure leaves the session available for retry.            |
 | `GET /api/health`  | Accepts `{"success":true,"data":{"status":"ok"}}` and legacy `{"status":"ok"}`. A successful HTTP response with status `"ok"` shows **API connected**.                                    |
 
-The Pinia store clears an expired session and clears the current session when an authenticated API request returns `401`. The router checks access before loading protected views and rechecks local expiry after the lazy workspace component loads. This second check handles expiry during navigation, including when the browser delays the expiry timer. The app redirects to `/login` when a session ends while the workspace is open.
+The Pinia store clears an expired session and clears the current session when an authenticated API request returns `401`. The router checks access before loading protected views and rechecks local expiry after the lazy workspace component loads. This second check handles expiry during navigation, including when the browser delays the expiry timer. If a session expires or the API rejects it, sign-in preserves the protected page, including its query and hash. The router validates the destination and checks access again before opening it. Explicit sign-out opens sign-in directly.
+
+The app keeps the Laravel bearer token in `sessionStorage` so a reload in the same tab can restore the session after `/api/me` verifies it. The storage is scoped to the tab, and JavaScript on the app's origin can read it. An XSS vulnerability could expose the token until it expires or is revoked. Keeping the token only in memory would remove that persistence and require signing in again after a reload.
+
+Protected pages show a warning five minutes before the server-issued expiry. A restored session with less time remaining shows the warning as soon as it is verified.
+
+The shared API client defaults to a 10-second timeout. For a slower call, pass a positive integer `timeoutMs` in milliseconds, for example `auth.request(path, { timeoutMs: 30_000 })`. A caller-provided `signal` can still cancel the request earlier.
 
 ### Project structure
 

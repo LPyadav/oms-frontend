@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { AUTH_STATUS } from '../constants/auth'
 import { useAuthStore } from '../stores/auth'
-import { getSignedInRouteName } from './signedInRoute'
+import { loginLocation, signedInLocation } from './authRedirect'
 
 export function createAppRouter(history = createWebHistory(import.meta.env.BASE_URL)) {
   const router = createRouter({
@@ -9,6 +9,10 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     routes: [
       {
         path: '/',
+        redirect: { name: 'login' },
+      },
+      {
+        path: '/dev/health',
         name: 'connection-check',
         component: () => import('../views/ConnectionCheckView.vue'),
       },
@@ -60,7 +64,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     const auth = useAuthStore()
     if (auth.status !== AUTH_STATUS.UNAVAILABLE) await auth.initialize()
 
-    if (requiresAuth && !auth.isAuthenticated) return { name: 'login', replace: true }
+    if (requiresAuth && !auth.isAuthenticated) return loginLocation(to)
     if (
       (to.meta.requiresUserManagement && !auth.canManageUsers) ||
       (to.meta.requiresRoleManagement && !auth.canManageRoles)
@@ -68,7 +72,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       return { name: 'access-denied', replace: true }
     }
     if (guestOnly && auth.isAuthenticated) {
-      return { name: getSignedInRouteName(auth.canManageUsers), replace: true }
+      return { ...signedInLocation(router, to.query.redirect, auth.canManageUsers), replace: true }
     }
   })
 
@@ -77,7 +81,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
 
     const auth = useAuthStore()
     if (auth.isAuthenticated) await auth.initialize()
-    if (!auth.isAuthenticated) return { name: 'login', replace: true }
+    if (!auth.isAuthenticated) return loginLocation(to)
   })
 
   return router
