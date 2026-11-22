@@ -1,12 +1,11 @@
 <script setup>
-import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, shallowRef, useTemplateRef } from 'vue'
 import { VAvatar } from 'vuetify/components/VAvatar'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VChip } from 'vuetify/components/VChip'
-import { VSelect } from 'vuetify/components/VSelect'
 import { VTable } from 'vuetify/components/VTable'
-import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import CatalogDirectoryFilters from '../../components/directory/CatalogDirectoryFilters.vue'
 import CatalogDirectoryShell from '../../components/directory/CatalogDirectoryShell.vue'
 import CustomerProfileDialog from '../../components/customers/CustomerProfileDialog.vue'
 import { useCustomerDirectory } from '../../composables/useCustomerDirectory'
@@ -17,13 +16,6 @@ const auth = useAuthStore()
 const heading = useTemplateRef('heading')
 const dialog = shallowRef(null)
 let dialogTrigger
-const status = ref('all')
-const statusOptions = [
-  { title: 'All statuses', value: 'all' },
-  { title: 'Active', value: 'active' },
-  { title: 'Inactive', value: 'inactive' },
-]
-const statusFilters = { all: null, active: true, inactive: false }
 const requests = new AbortController()
 const {
   search,
@@ -38,18 +30,9 @@ const {
   signal: requests.signal,
 })
 const filtersApplied = computed(() => !!query.value.search || query.value.isActive !== null)
-const filtersPresent = computed(
-  () => filtersApplied.value || !!search.value?.trim() || status.value !== 'all',
-)
-
-function applyFilters() {
-  return applyDirectoryFilters(statusFilters[status.value] ?? null)
-}
 
 async function clearFilters() {
-  search.value = ''
-  status.value = 'all'
-  if (await applyFilters()) heading.value?.focus({ preventScroll: true })
+  if (await applyDirectoryFilters(null)) heading.value?.focus({ preventScroll: true })
 }
 
 async function changePage(page) {
@@ -116,42 +99,15 @@ onScopeDispose(() => requests.abort())
       @page-change="changePage"
     >
       <template #filters>
-        <form class="customer-filters" aria-label="Customer filters" @submit.prevent="applyFilters">
-          <VTextField
-            v-model="search"
-            label="Search customers"
-            placeholder="Name, email, or phone"
-            :prepend-inner-icon="aliases.search"
-            type="search"
-            variant="outlined"
-            density="comfortable"
-            maxlength="255"
-            hide-details
-          />
-          <VSelect
-            v-model="status"
-            label="Status"
-            :items="statusOptions"
-            :menu-icon="aliases.dropdown"
-            variant="outlined"
-            density="comfortable"
-            hide-details
-          />
-          <div class="customer-filter-actions">
-            <VBtn type="submit" color="primary" variant="flat" class="text-none"
-              >Apply filters</VBtn
-            >
-            <VBtn
-              v-if="filtersPresent"
-              type="button"
-              variant="text"
-              class="text-none"
-              @click="clearFilters"
-            >
-              Clear
-            </VBtn>
-          </div>
-        </form>
+        <CatalogDirectoryFilters
+          v-model="search"
+          aria-label="Customer filters"
+          search-label="Search customers"
+          search-placeholder="Name, email, or phone"
+          :filters-applied="filtersApplied"
+          @apply="applyDirectoryFilters"
+          @clear="clearFilters"
+        />
       </template>
 
       <VTable class="customers-table" density="comfortable">
@@ -239,23 +195,10 @@ onScopeDispose(() => requests.abort())
   outline: none;
 }
 
-.customer-filters {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(145px, 0.36fr) auto;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-}
-
-.customer-filter-actions,
 .customer-identity {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.customer-filter-actions {
-  flex-wrap: wrap;
 }
 
 .customers-table thead {
@@ -298,12 +241,6 @@ onScopeDispose(() => requests.abort())
 
 .customer-cell-label {
   display: none;
-}
-
-@media (max-width: 700px) {
-  .customer-filters {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 599px) {
