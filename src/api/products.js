@@ -64,3 +64,25 @@ export function deactivateProduct(request, id, signal) {
     { id, active: false },
   )
 }
+
+export function adjustProductStock(
+  request,
+  id,
+  { stockQuantity, expectedStockVersion, reason },
+  signal,
+) {
+  return requestProduct(
+    request,
+    `${productsPath}/${id}/stock`,
+    {
+      method: 'PATCH',
+      body: {
+        stock_quantity: stockQuantity,
+        expected_stock_version: expectedStockVersion,
+        reason,
+      },
+      signal,
+    },
+    { id },
+  )
+}

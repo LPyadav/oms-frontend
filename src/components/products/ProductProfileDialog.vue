@@ -1,14 +1,16 @@
 <script setup>
-import { computed, onMounted, onScopeDispose, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, ref, useTemplateRef, watch } from 'vue'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
 import { VDialog } from 'vuetify/components/VDialog'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
+import { VTextarea } from 'vuetify/components/VTextarea'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useProductProfile } from '../../composables/useProductProfile'
+import { useStockAdjustment } from '../../composables/useStockAdjustment'
 import { useAuthStore } from '../../stores/auth'
 
 const props = defineProps({
@@ -40,8 +42,45 @@ const {
   signal: requests.signal,
 })
 
-const titles = { create: 'New product', edit: 'Edit product', deactivate: 'Deactivate product' }
-const submitLabels = { create: 'Create product', edit: 'Save changes', deactivate: 'Deactivate' }
+const {
+  countedQuantity,
+  reason,
+  saving: savingStock,
+  reloading: reloadingStock,
+  error: stockError,
+  reloadError,
+  reloadReason,
+  reloaded,
+  matchesCurrent,
+  quantityMessages,
+  reasonMessages,
+  canSubmit: canSubmitStock,
+  reset: resetStock,
+  save: saveStock,
+  reload: reloadStock,
+} = useStockAdjustment({
+  request: auth.request,
+  product,
+  canManage: () => auth.canManageProducts,
+  signal: requests.signal,
+})
+const reloadStockButton = useTemplateRef('reloadStockButton')
+const busy = computed(() => saving.value || savingStock.value || reloadingStock.value)
+const activeError = computed(() => (mode.value === 'stock' ? stockError.value : writeError.value))
+const canSave = computed(() => (mode.value === 'stock' ? canSubmitStock.value : canSubmit.value))
+
+const titles = {
+  stock: 'Adjust stock',
+  create: 'New product',
+  edit: 'Edit product',
+  deactivate: 'Deactivate product',
+}
+const submitLabels = {
+  stock: 'Save adjustment',
+  create: 'Create product',
+  edit: 'Save changes',
+  deactivate: 'Deactivate',
+}
 const fields = [
   { key: 'name', label: 'Product name', maxLength: 255, wide: true },
   { key: 'sku', label: 'SKU', maxLength: 64, wide: true },
@@ -79,10 +118,39 @@ function focusHeading() {
 }
 
 function close() {
-  if (!saving.value) emit('close')
+  if (!busy.value) emit('close')
+}
+
+function openStockAdjustment() {
+  if (mode.value !== 'profile' || !product.value || !auth.canManageProducts || busy.value) return
+  resetStock()
+  mode.value = 'stock'
+}
+
+async function reloadCurrentStock() {
+  if (!(await reloadStock())) return
+  emit('changed')
+  await nextTick()
+  focusHeading()
+}
+
+async function submitStock() {
+  if (await saveStock()) {
+    showProfile()
+    notice.value = 'Stock adjusted.'
+    emit('changed')
+    return
+  }
+
+  if (reloadReason.value) {
+    await nextTick()
+    reloadStockButton.value?.$el.focus()
+  }
 }
 
 async function submit() {
+  if (mode.value === 'stock') return submitStock()
+
   const operation = mode.value
   const saved = await save()
   if (!saved) return
@@ -98,7 +166,7 @@ onScopeDispose(() => requests.abort())
 <template>
   <VDialog
     :model-value="true"
-    :persistent="saving"
+    :persistent="busy"
     max-width="608"
     aria-labelledby="product-profile-title"
     @update:model-value="(open) => !open && close()"
@@ -114,7 +182,7 @@ onScopeDispose(() => requests.abort())
             type="button"
             variant="text"
             size="small"
-            :disabled="saving"
+            :disabled="busy"
             @click="close"
           />
         </header>
@@ -139,10 +207,10 @@ onScopeDispose(() => requests.abort())
             </VBtn>
           </div>
           <template v-else>
-            <VAlert v-if="writeError" type="error" variant="tonal" :icon="false" role="alert">
+            <VAlert v-if="activeError" type="error" variant="tonal" :icon="false" role="alert">
               {{
                 failureMessage(
-                  writeError,
+                  activeError,
                   'Could not confirm the change. Check the directory before retrying.',
                 )
               }}
@@ -169,6 +237,77 @@ onScopeDispose(() => requests.abort())
                 hide-details="auto"
               />
             </div>
+            <template v-else-if="mode === 'stock'">
+              <div v-if="reloadReason" class="product-dialog-state">
+                <VAlert type="warning" variant="tonal" :icon="false" role="alert">
+                  <span class="stock-conflict-message">{{
+                    reloadReason === 'conflict'
+                      ? 'Stock changed after this profile was loaded. Reload current stock before saving.'
+                      : 'Could not confirm the adjustment. Reload current stock before saving again.'
+                  }}</span>
+                </VAlert>
+                <VAlert v-if="reloadError" type="error" variant="tonal" :icon="false" role="alert">
+                  {{ failureMessage(reloadError, 'Unable to reload current stock. Try again.') }}
+                </VAlert>
+                <VBtn
+                  ref="reloadStockButton"
+                  type="button"
+                  variant="outlined"
+                  class="text-none"
+                  :loading="reloadingStock"
+                  :disabled="busy"
+                  @click="reloadCurrentStock"
+                >
+                  Reload current stock
+                </VBtn>
+              </div>
+              <VAlert
+                v-else-if="reloaded"
+                color="primary"
+                variant="tonal"
+                :icon="false"
+                role="status"
+              >
+                Current stock reloaded. Review your counted quantity before saving.
+              </VAlert>
+              <dl class="product-dialog-fields product-profile">
+                <div>
+                  <dt>Product</dt>
+                  <dd>{{ product.name }} · {{ product.sku }}</dd>
+                </div>
+                <div>
+                  <dt>{{ reloadReason ? 'Last known stock' : 'Current stock' }}</dt>
+                  <dd>{{ product.stock_quantity }}</dd>
+                </div>
+              </dl>
+              <VTextField
+                v-model="countedQuantity"
+                label="Counted quantity"
+                hint="Enter the total number of units counted."
+                persistent-hint
+                inputmode="numeric"
+                required
+                variant="outlined"
+                density="comfortable"
+                :disabled="busy"
+                :error-messages="quantityMessages"
+                hide-details="auto"
+              />
+              <VTextarea
+                v-model="reason"
+                label="Reason"
+                rows="2"
+                required
+                variant="outlined"
+                density="comfortable"
+                :disabled="busy"
+                :error-messages="reasonMessages"
+                hide-details="auto"
+              />
+              <p v-if="matchesCurrent && !reloadReason" role="status">
+                Counted quantity matches current stock.
+              </p>
+            </template>
             <p v-else-if="mode === 'deactivate'">
               Deactivate <strong>{{ product.name }}</strong>? The product will appear as Inactive in
               the directory and its stock balance will be preserved.
@@ -205,7 +344,20 @@ onScopeDispose(() => requests.abort())
                 </div>
                 <div class="product-detail-wide">
                   <dt>Stock</dt>
-                  <dd>{{ product.stock_quantity }}</dd>
+                  <dd class="product-stock-balance">
+                    <span>{{ product.stock_quantity }}</span>
+                    <VBtn
+                      v-if="auth.canManageProducts"
+                      type="button"
+                      color="primary"
+                      variant="outlined"
+                      size="small"
+                      class="text-none"
+                      @click="openStockAdjustment"
+                    >
+                      Adjust stock
+                    </VBtn>
+                  </dd>
                 </div>
               </dl>
             </template>
@@ -217,7 +369,7 @@ onScopeDispose(() => requests.abort())
             type="button"
             variant="text"
             class="text-none"
-            :disabled="saving"
+            :disabled="busy"
             @click="mode === 'create' || mode === 'profile' ? close() : showProfile()"
           >
             {{ mode === 'profile' ? 'Close' : 'Cancel' }}
@@ -251,8 +403,8 @@ onScopeDispose(() => requests.abort())
             :color="mode === 'deactivate' ? 'error' : 'primary'"
             variant="flat"
             class="text-none"
-            :loading="saving"
-            :disabled="!canSubmit"
+            :loading="saving || savingStock"
+            :disabled="!canSave"
           >
             {{ submitLabels[mode] }}
           </VBtn>
@@ -340,6 +492,18 @@ onScopeDispose(() => requests.abort())
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.stock-conflict-message {
+  color: rgb(var(--v-theme-on-surface));
+}
+
+.product-stock-balance {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .product-dialog-footer {
