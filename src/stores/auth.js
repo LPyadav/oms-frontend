@@ -5,6 +5,7 @@ import { AUTH_STATUS } from '../constants/auth'
 
 const storageKey = 'oms.session'
 const maxTimeout = 2_147_483_647
+const expiryWarningWindow = 5 * 60_000
 
 function isActive(session) {
   return (
@@ -32,7 +33,9 @@ export const useAuthStore = defineStore('auth', () => {
   const user = shallowRef(null)
   const error = shallowRef(null)
   const signedOutExplicitly = ref(false)
+  const expiresSoon = ref(false)
   const isAuthenticated = computed(() => status.value === AUTH_STATUS.AUTHENTICATED)
+  const sessionExpiresSoon = computed(() => isAuthenticated.value && expiresSoon.value)
   const canManageUsers = computed(
     () =>
       isAuthenticated.value &&
@@ -48,19 +51,23 @@ export const useAuthStore = defineStore('auth', () => {
 
   function scheduleExpiry(current) {
     const remaining = Math.max(0, current.expiresAt - Date.now())
+    const untilWarning = remaining - expiryWarningWindow
+    expiresSoon.value = remaining > 0 && untilWarning <= 0
+
     expiryTimer = setTimeout(
       () => {
         if (session !== current) return
         if (isActive(current)) scheduleExpiry(current)
         else clearSession()
       },
-      Math.min(remaining, maxTimeout),
+      Math.min(untilWarning > 0 ? untilWarning : remaining, maxTimeout),
     )
   }
 
   function saveSession(next) {
     session = next
     clearTimeout(expiryTimer)
+    expiresSoon.value = false
     if (next) {
       signedOutExplicitly.value = false
       scheduleExpiry(next)
@@ -233,6 +240,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     error,
     isAuthenticated,
+    sessionExpiresSoon,
     signedOutExplicitly,
     canManageUsers,
     initialize,

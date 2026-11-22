@@ -141,6 +141,7 @@ describe('OMS authentication', () => {
 
     expect(auth.isAuthenticated).toBe(false)
     expect(auth.user).toBeNull()
+    expect(auth.sessionExpiresSoon).toBe(false)
     expect(sessionStorage.length).toBe(0)
   })
 
@@ -152,9 +153,57 @@ describe('OMS authentication', () => {
     const auth = useAuthStore()
     await auth.login({ email: profile.email, password: 'test-password' })
 
+    expect(auth.sessionExpiresSoon).toBe(true)
     await expect(auth.request('/api/admin/users')).rejects.toMatchObject({ status: 401 })
+    expect(auth.sessionExpiresSoon).toBe(false)
     expect(auth.status).toBe('anonymous')
     expect(sessionStorage.length).toBe(0)
+  })
+
+  it.each([0, 2_147_483_647])(
+    'warns five minutes before expiry with a timer offset of %d ms',
+    async (offset) => {
+      vi.useFakeTimers()
+      const expiresAt = new Date(Date.now() + offset + 600_000).toISOString()
+      fetchMock
+        .mockResolvedValueOnce(loginResponse(expiresAt))
+        .mockResolvedValueOnce(success({ user: profile }))
+      const auth = useAuthStore()
+
+      await auth.login({ email: profile.email, password: 'test-password' })
+      expect(auth.sessionExpiresSoon).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(offset + 299_999)
+      expect(auth.sessionExpiresSoon).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(auth.sessionExpiresSoon).toBe(true)
+      expect(auth.isAuthenticated).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(300_000)
+      expect(auth.isAuthenticated).toBe(false)
+      expect(auth.sessionExpiresSoon).toBe(false)
+      expect(sessionStorage.length).toBe(0)
+      expect(fetchMock.mock.calls.map(([path]) => path)).toEqual(['/api/login', '/api/me'])
+    },
+  )
+
+  it('shows the warning for a restored short session after profile verification', async () => {
+    vi.useFakeTimers()
+    sessionStorage.setItem(
+      'oms.session',
+      JSON.stringify({ token: 'restored-token', expiresAt: Date.now() + 120_000 }),
+    )
+    const profileRequest = Promise.withResolvers()
+    fetchMock.mockReturnValueOnce(profileRequest.promise)
+    const auth = useAuthStore()
+
+    const restoration = auth.initialize()
+    expect(auth.sessionExpiresSoon).toBe(false)
+    profileRequest.resolve(success({ user: profile }))
+    await restoration
+
+    expect(auth.sessionExpiresSoon).toBe(true)
+    expect(fetchMock.mock.calls.map(([path]) => path)).toEqual(['/api/me'])
   })
 
   it('ends an expired session while the user stays on a protected screen', async () => {

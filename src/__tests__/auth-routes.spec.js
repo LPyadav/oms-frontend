@@ -6,6 +6,13 @@ import App from '../App.vue'
 import { createAppRouter } from '../router'
 import { useAuthStore } from '../stores/auth'
 
+vi.mock('vuetify/components/VAlert', () => ({
+  VAlert: {
+    setup(_props, { slots }) {
+      return () => slots.default?.()
+    },
+  },
+}))
 vi.mock('vuetify/components/VApp', () => ({
   VApp: {
     setup(_props, { slots }) {
@@ -215,7 +222,10 @@ it.each(['expiry', 'unauthorized response', 'explicit sign-out'])(
     const intended = '/workspace?view=open#details'
     await router.push(intended)
     app = createApp(App).use(pinia).use(router)
-    app.mount(document.createElement('div'))
+    const page = document.createElement('div')
+    app.mount(page)
+    const notice = page.querySelector('[role="status"]')
+    expect(notice.textContent).toContain('Your session expires soon.')
     const auth = useAuthStore()
     let requestFailure
 
@@ -234,6 +244,23 @@ it.each(['expiry', 'unauthorized response', 'explicit sign-out'])(
       cause === 'explicit sign-out' ? undefined : intended,
     )
     expect(requestFailure?.status).toBe(cause === 'unauthorized response' ? 401 : undefined)
+    expect(notice.textContent).not.toContain('Your session expires soon.')
     expect(sessionStorage.getItem(sessionKey)).toBeNull()
   },
 )
+
+it('shows an expiry warning on a protected page and hides it on the public diagnostic', async () => {
+  rememberSession()
+  fetchMock.mockResolvedValueOnce(profileResponse())
+  await router.push('/workspace')
+  app = createApp(App).use(pinia).use(router)
+  const page = document.createElement('div')
+  app.mount(page)
+
+  const notice = page.querySelector('[role="status"]')
+  expect(notice.textContent).toContain('Your session expires soon.')
+
+  await router.push('/dev/health')
+  expect(notice.textContent).not.toContain('Your session expires soon.')
+  expect(useAuthStore().isAuthenticated).toBe(true)
+})

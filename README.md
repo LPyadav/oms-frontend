@@ -87,6 +87,10 @@ Epic 01 adds the OMS sign-in flow, bearer-token session management, and a protec
 
 The Pinia store clears an expired session and clears the current session when an authenticated API request returns `401`. The router checks access before loading protected views and rechecks local expiry after the lazy workspace component loads. This second check handles expiry during navigation, including when the browser delays the expiry timer. If a session expires or the API rejects it, sign-in preserves the protected page, including its query and hash. The router validates the destination and checks access again before opening it. Explicit sign-out opens sign-in directly.
 
+The app keeps the Laravel bearer token in `sessionStorage` so a reload in the same tab can restore the session after `/api/me` verifies it. The storage is scoped to the tab, and JavaScript on the app's origin can read it. An XSS vulnerability could expose the token until it expires or is revoked. Keeping the token only in memory would remove that persistence and require signing in again after a reload.
+
+Protected pages show a warning five minutes before the server-issued expiry. A restored session with less time remaining shows the warning as soon as it is verified.
+
 ### Project structure
 
 | Area                 | Files                                                                                                                                                            |
