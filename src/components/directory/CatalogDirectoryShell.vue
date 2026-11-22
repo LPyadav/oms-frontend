@@ -1,8 +1,9 @@
 <script setup>
 import { computed } from 'vue'
 import { VBtn } from 'vuetify/components/VBtn'
-import { VCard } from 'vuetify/components/VCard'
-import { aliases } from 'vuetify/iconsets/mdi-svg'
+import { formatDirectoryPageRange, getDirectoryErrorMessage } from '../../utils/directory'
+import DirectoryPagination from './DirectoryPagination.vue'
+import DirectoryPanel from './DirectoryPanel.vue'
 import DirectoryState from './DirectoryState.vue'
 
 const props = defineProps({
@@ -17,27 +18,19 @@ const emit = defineEmits(['retry', 'page-change'])
 const itemName = computed(() => props.itemLabel.toLowerCase())
 const collectionName = computed(() => itemName.value + 's')
 
-const errorMessage = computed(() => {
-  if (props.error?.status === 403) {
-    return 'You do not have permission to view ' + collectionName.value + '.'
-  }
-  if (props.error?.status === 429) return 'Too many requests. Try again shortly.'
-  return 'Unable to load ' + collectionName.value + '. Try again.'
-})
+const errorMessage = computed(() =>
+  getDirectoryErrorMessage(props.error, 'Unable to load ' + collectionName.value + '. Try again.', {
+    403: 'You do not have permission to view ' + collectionName.value + '.',
+  }),
+)
 
-const pageRange = computed(() => {
-  if (!props.page || !props.itemCount) return ''
-
-  const { currentPage, perPage, total } = props.page
-  const start = (currentPage - 1) * perPage + 1
-  const end = start + props.itemCount - 1
-  const range = start === end ? String(start) : start + '–' + end
-  return range + ' of ' + total + ' ' + (total === 1 ? itemName.value : collectionName.value)
-})
+const pageRange = computed(() =>
+  formatDirectoryPageRange(props.page, props.itemCount, itemName.value, collectionName.value),
+)
 </script>
 
 <template>
-  <VCard color="surface" variant="flat" border class="catalog-card">
+  <DirectoryPanel>
     <slot name="filters" />
 
     <DirectoryState
@@ -94,40 +87,24 @@ const pageRange = computed(() => {
 
         <footer class="catalog-footer">
           <span class="catalog-detail" aria-live="polite">{{ pageRange }}</span>
-          <nav v-if="page.lastPage > 1" class="catalog-pages" :aria-label="itemLabel + ' pages'">
-            <VBtn
-              aria-label="Previous page"
-              :icon="aliases.prev"
-              size="small"
-              rounded="lg"
-              variant="outlined"
-              :disabled="page.currentPage <= 1"
-              @click="emit('page-change', page.currentPage - 1)"
-            />
+          <DirectoryPagination
+            v-if="page.lastPage > 1"
+            class="catalog-pages"
+            :label="itemLabel + ' pages'"
+            :current-page="page.currentPage"
+            :last-page="page.lastPage"
+            rounded="lg"
+            @page-change="emit('page-change', $event)"
+          >
             <span class="catalog-detail">Page {{ page.currentPage }} of {{ page.lastPage }}</span>
-            <VBtn
-              aria-label="Next page"
-              :icon="aliases.next"
-              size="small"
-              rounded="lg"
-              variant="outlined"
-              :disabled="page.currentPage >= page.lastPage"
-              @click="emit('page-change', page.currentPage + 1)"
-            />
-          </nav>
+          </DirectoryPagination>
         </footer>
       </template>
     </template>
-  </VCard>
+  </DirectoryPanel>
 </template>
 
 <style scoped>
-.catalog-card {
-  border-color: rgba(var(--v-theme-on-surface), 0.14);
-  border-radius: 12px;
-  box-shadow: 0 2px 7px rgba(var(--v-theme-on-surface), 0.045);
-}
-
 .catalog-state {
   display: grid;
   gap: 12px;
@@ -136,18 +113,18 @@ const pageRange = computed(() => {
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
-.catalog-footer,
-.catalog-pages {
+.catalog-footer {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.catalog-footer {
   flex-wrap: wrap;
   justify-content: space-between;
   padding: 14px 16px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.catalog-pages {
+  gap: 10px;
 }
 
 .catalog-detail {

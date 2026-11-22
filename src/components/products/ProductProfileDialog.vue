@@ -6,12 +6,12 @@ import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
 import { VDialog } from 'vuetify/components/VDialog'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
-import { VTextarea } from 'vuetify/components/VTextarea'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useProductProfile } from '../../composables/useProductProfile'
 import { useStockAdjustment } from '../../composables/useStockAdjustment'
 import { useAuthStore } from '../../stores/auth'
+import ProductStockAdjustmentFields from './ProductStockAdjustmentFields.vue'
 
 const props = defineProps({
   productId: { type: Number, default: null },
@@ -64,7 +64,7 @@ const {
   canManage: () => auth.canManageProducts,
   signal: requests.signal,
 })
-const reloadStockButton = useTemplateRef('reloadStockButton')
+const stockAdjustment = useTemplateRef('stockAdjustment')
 const busy = computed(() => saving.value || savingStock.value || reloadingStock.value)
 const activeError = computed(() => (mode.value === 'stock' ? stockError.value : writeError.value))
 const canSave = computed(() => (mode.value === 'stock' ? canSubmitStock.value : canSubmit.value))
@@ -95,6 +95,11 @@ const savedNotices = {
 const title = computed(() => titles[mode.value] ?? product.value?.name ?? 'Product profile')
 const editing = computed(() => mode.value === 'create' || mode.value === 'edit')
 const fieldErrors = computed(() => writeError.value?.fields ?? {})
+const stockReloadErrorMessage = computed(() =>
+  reloadError.value
+    ? failureMessage(reloadError.value, 'Unable to reload current stock. Try again.')
+    : '',
+)
 
 function failureMessage(failure, fallback) {
   if (failure.status === 403) return 'You no longer have access to perform this action.'
@@ -144,7 +149,7 @@ async function submitStock() {
 
   if (reloadReason.value) {
     await nextTick()
-    reloadStockButton.value?.$el.focus()
+    stockAdjustment.value?.focusReloadButton()
   }
 }
 
@@ -237,77 +242,22 @@ onScopeDispose(() => requests.abort())
                 hide-details="auto"
               />
             </div>
-            <template v-else-if="mode === 'stock'">
-              <div v-if="reloadReason" class="product-dialog-state">
-                <VAlert type="warning" variant="tonal" :icon="false" role="alert">
-                  <span class="stock-conflict-message">{{
-                    reloadReason === 'conflict'
-                      ? 'Stock changed after this profile was loaded. Reload current stock before saving.'
-                      : 'Could not confirm the adjustment. Reload current stock before saving again.'
-                  }}</span>
-                </VAlert>
-                <VAlert v-if="reloadError" type="error" variant="tonal" :icon="false" role="alert">
-                  {{ failureMessage(reloadError, 'Unable to reload current stock. Try again.') }}
-                </VAlert>
-                <VBtn
-                  ref="reloadStockButton"
-                  type="button"
-                  variant="outlined"
-                  class="text-none"
-                  :loading="reloadingStock"
-                  :disabled="busy"
-                  @click="reloadCurrentStock"
-                >
-                  Reload current stock
-                </VBtn>
-              </div>
-              <VAlert
-                v-else-if="reloaded"
-                color="primary"
-                variant="tonal"
-                :icon="false"
-                role="status"
-              >
-                Current stock reloaded. Review your counted quantity before saving.
-              </VAlert>
-              <dl class="product-dialog-fields product-profile">
-                <div>
-                  <dt>Product</dt>
-                  <dd>{{ product.name }} · {{ product.sku }}</dd>
-                </div>
-                <div>
-                  <dt>{{ reloadReason ? 'Last known stock' : 'Current stock' }}</dt>
-                  <dd>{{ product.stock_quantity }}</dd>
-                </div>
-              </dl>
-              <VTextField
-                v-model="countedQuantity"
-                label="Counted quantity"
-                hint="Enter the total number of units counted."
-                persistent-hint
-                inputmode="numeric"
-                required
-                variant="outlined"
-                density="comfortable"
-                :disabled="busy"
-                :error-messages="quantityMessages"
-                hide-details="auto"
-              />
-              <VTextarea
-                v-model="reason"
-                label="Reason"
-                rows="2"
-                required
-                variant="outlined"
-                density="comfortable"
-                :disabled="busy"
-                :error-messages="reasonMessages"
-                hide-details="auto"
-              />
-              <p v-if="matchesCurrent && !reloadReason" role="status">
-                Counted quantity matches current stock.
-              </p>
-            </template>
+            <ProductStockAdjustmentFields
+              v-else-if="mode === 'stock'"
+              ref="stockAdjustment"
+              v-model:counted-quantity="countedQuantity"
+              v-model:reason="reason"
+              :product="product"
+              :busy="busy"
+              :reloading="reloadingStock"
+              :reload-reason="reloadReason"
+              :reload-error-message="stockReloadErrorMessage"
+              :reloaded="reloaded"
+              :matches-current="matchesCurrent"
+              :quantity-messages="quantityMessages"
+              :reason-messages="reasonMessages"
+              @reload="reloadCurrentStock"
+            />
             <p v-else-if="mode === 'deactivate'">
               Deactivate <strong>{{ product.name }}</strong>? The product will appear as Inactive in
               the directory and its stock balance will be preserved.
@@ -492,10 +442,6 @@ onScopeDispose(() => requests.abort())
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-
-.stock-conflict-message {
-  color: rgb(var(--v-theme-on-surface));
 }
 
 .product-stock-balance {
