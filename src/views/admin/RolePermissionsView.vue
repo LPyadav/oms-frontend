@@ -6,8 +6,8 @@ import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
 import { VCheckbox } from 'vuetify/components/VCheckbox'
 import { VList, VListItem } from 'vuetify/components/VList'
-import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import DirectoryState from '../../components/directory/DirectoryState.vue'
 import AdminRoleNameDialog from '../../components/admin/AdminRoleNameDialog.vue'
 import { isBuiltInRole, useRoleManagement } from '../../composables/useRoleManagement'
 import { useAuthStore } from '../../stores/auth'
@@ -168,23 +168,31 @@ onScopeDispose(() => requests.abort())
         <header class="role-card-header">
           <h2 ref="rolesHeading" tabindex="-1">Roles</h2>
         </header>
-        <div v-if="pageLoading" class="role-state" role="status">
-          <VProgressLinear color="primary" indeterminate aria-hidden="true" />
-          <p>Loading roles…</p>
-        </div>
-        <div v-else-if="pageError" class="role-state">
-          <VAlert type="error" variant="tonal" :icon="false" role="alert">{{ pageError }}</VAlert>
-          <VBtn
-            class="text-none"
-            variant="outlined"
-            type="button"
-            @click="changePage(requestedPage)"
-          >
-            Try again
-          </VBtn>
-        </div>
+        <DirectoryState
+          v-if="pageLoading"
+          class="role-state"
+          kind="loading"
+          message="Loading roles…"
+        />
+        <DirectoryState v-else-if="pageError" class="role-state" kind="error" :message="pageError">
+          <template #actions>
+            <VBtn
+              class="text-none"
+              variant="outlined"
+              type="button"
+              @click="changePage(requestedPage)"
+            >
+              Try again
+            </VBtn>
+          </template>
+        </DirectoryState>
         <template v-else-if="page">
-          <p v-if="!page.roles.length" class="role-state">No roles found on this page.</p>
+          <DirectoryState
+            v-if="!page.roles.length"
+            class="role-state"
+            kind="empty"
+            message="No roles found on this page."
+          />
           <VList v-else nav aria-label="Select a role" class="role-list">
             <VListItem
               v-for="role in page.roles"
@@ -252,24 +260,27 @@ onScopeDispose(() => requests.abort())
           </VBtn>
         </header>
 
-        <div v-if="!permissionsReadOnly && catalogLoading" class="role-state" role="status">
-          <VProgressLinear color="primary" indeterminate aria-hidden="true" />
-          <p>Loading permissions…</p>
-        </div>
-        <div
+        <DirectoryState
+          v-if="!permissionsReadOnly && catalogLoading"
+          class="role-state"
+          kind="loading"
+          message="Loading permissions…"
+        />
+        <DirectoryState
           v-else-if="!permissionsReadOnly && (catalogError || missingPermissions)"
           class="role-state"
+          kind="error"
+          :message="
+            catalogError ||
+            'Some assigned permissions are missing from the catalog. Refresh before saving.'
+          "
         >
-          <VAlert type="error" variant="tonal" :icon="false" role="alert">
-            {{
-              catalogError ||
-              'Some assigned permissions are missing from the catalog. Refresh before saving.'
-            }}
-          </VAlert>
-          <VBtn type="button" variant="outlined" class="text-none" @click="loadCatalog">
-            Try again
-          </VBtn>
-        </div>
+          <template #actions>
+            <VBtn type="button" variant="outlined" class="text-none" @click="loadCatalog">
+              Try again
+            </VBtn>
+          </template>
+        </DirectoryState>
         <form v-else @submit.prevent="submitPermissions">
           <fieldset class="permissions-fieldset" :disabled="!canEditPermissions">
             <legend>Permissions</legend>

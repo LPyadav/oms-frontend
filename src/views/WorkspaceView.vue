@@ -115,8 +115,7 @@ async function signOut() {
 <style scoped>
 .workspace {
   display: grid;
-  min-height: 100vh;
-  min-height: 100dvh;
+  flex: 1 0 auto;
   place-items: center;
   padding: 24px;
 }

@@ -1,14 +1,15 @@
 <script setup>
 import { nextTick, useTemplateRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VTextField } from 'vuetify/components/VTextField'
 import { useSignInForm } from '../../composables/useSignInForm'
 import AuthLayout from '../../layouts/AuthLayout.vue'
-import { getSignedInRouteName } from '../../router/signedInRoute'
+import { signedInLocation } from '../../router/authRedirect'
 import { useAuthStore } from '../../stores/auth'
 
+const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const heading = useTemplateRef('heading')
@@ -28,7 +29,9 @@ const {
 } = useSignInForm()
 
 watch(isAuthenticated, (authenticated) => {
-  if (authenticated) void router.replace({ name: getSignedInRouteName(auth.canManageUsers) })
+  if (authenticated) {
+    void router.replace(signedInLocation(router, route.query.redirect, auth.canManageUsers))
+  }
 })
 
 async function retrySession() {

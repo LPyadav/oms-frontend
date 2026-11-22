@@ -1,15 +1,13 @@
 <script setup>
 import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, useTemplateRef } from 'vue'
-import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
-import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
-import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { VSelect } from 'vuetify/components/VSelect'
 import { VTable } from 'vuetify/components/VTable'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { loadProductPage } from '../../api/products'
+import CatalogDirectoryShell from '../../components/directory/CatalogDirectoryShell.vue'
 import ProductProfileDialog from '../../components/products/ProductProfileDialog.vue'
 import { useCatalogDirectory } from '../../composables/useCatalogDirectory'
 import { useAuthStore } from '../../stores/auth'
@@ -18,7 +16,6 @@ const auth = useAuthStore()
 const heading = useTemplateRef('heading')
 const dialog = shallowRef(null)
 let dialogTrigger
-const search = ref('')
 const status = ref('all')
 const statusOptions = [
   { title: 'All statuses', value: 'all' },
@@ -27,35 +24,25 @@ const statusOptions = [
 ]
 const statusFilters = { all: null, active: true, inactive: false }
 const requests = new AbortController()
-const { query, result, error, loading, load } = useCatalogDirectory({
+const {
+  search,
+  query,
+  result,
+  error,
+  loading,
+  load,
+  applyFilters: applyDirectoryFilters,
+} = useCatalogDirectory({
   fetchPage: (query, signal) => loadProductPage(auth.request, query, signal),
   signal: requests.signal,
 })
 const filtersApplied = computed(() => !!query.value.search || query.value.isActive !== null)
 const filtersPresent = computed(
-  () => filtersApplied.value || !!search.value.trim() || status.value !== 'all',
+  () => filtersApplied.value || !!search.value?.trim() || status.value !== 'all',
 )
-const pageRange = computed(() => {
-  if (!result.value?.products.length) return ''
-
-  const { products, currentPage, perPage, total } = result.value
-  const start = (currentPage - 1) * perPage + 1
-  const end = start + products.length - 1
-  const range = start === end ? String(start) : start + '–' + end
-  return range + ' of ' + total + (total === 1 ? ' product' : ' products')
-})
-const errorMessage = computed(() => {
-  if (error.value?.status === 403) return 'You do not have permission to view products.'
-  if (error.value?.status === 429) return 'Too many requests. Try again shortly.'
-  return 'Unable to load products. Try again.'
-})
 
 function applyFilters() {
-  return load({
-    page: 1,
-    search: search.value.trim(),
-    isActive: statusFilters[status.value] ?? null,
-  })
+  return applyDirectoryFilters(statusFilters[status.value] ?? null)
 }
 
 async function clearFilters() {
@@ -117,160 +104,110 @@ onScopeDispose(() => requests.abort())
       </VBtn>
     </header>
 
-    <VCard color="surface" variant="flat" border class="products-card">
-      <form class="product-filters" aria-label="Product filters" @submit.prevent="applyFilters">
-        <VTextField
-          v-model="search"
-          label="Search products"
-          placeholder="Name or SKU"
-          :prepend-inner-icon="aliases.search"
-          type="search"
-          variant="outlined"
-          density="comfortable"
-          maxlength="255"
-          hide-details
-        />
-        <VSelect
-          v-model="status"
-          label="Status"
-          :items="statusOptions"
-          :menu-icon="aliases.dropdown"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-        />
-        <div class="product-filter-actions">
-          <VBtn type="submit" color="primary" variant="flat" class="text-none">Apply filters</VBtn>
-          <VBtn
-            v-if="filtersPresent"
-            type="button"
-            variant="text"
-            class="text-none"
-            @click="clearFilters"
-          >
-            Clear
-          </VBtn>
-        </div>
-      </form>
-
-      <div v-if="loading" class="products-state" role="status">
-        <VProgressLinear color="primary" indeterminate aria-hidden="true" />
-        <p>Loading products…</p>
-      </div>
-      <div v-else-if="error" class="products-state">
-        <VAlert type="error" variant="tonal" :icon="false" role="alert">{{ errorMessage }}</VAlert>
-        <VBtn
-          v-if="error.status === 403"
-          :to="{ name: 'workspace' }"
-          variant="outlined"
-          class="text-none"
-        >
-          Back to workspace
-        </VBtn>
-        <VBtn v-else type="button" variant="outlined" class="text-none" @click="load()">
-          Try again
-        </VBtn>
-      </div>
-      <template v-else-if="result">
-        <div v-if="result.currentPage > result.lastPage" class="products-state">
-          <p>This product page is no longer available.</p>
-          <VBtn
-            type="button"
+    <CatalogDirectoryShell
+      item-label="Product"
+      :loading="loading"
+      :error="error"
+      :page="result"
+      :item-count="result?.products.length ?? 0"
+      :filters-applied="filtersApplied"
+      @retry="load()"
+      @page-change="changePage"
+    >
+      <template #filters>
+        <form class="product-filters" aria-label="Product filters" @submit.prevent="applyFilters">
+          <VTextField
+            v-model="search"
+            label="Search products"
+            placeholder="Name or SKU"
+            :prepend-inner-icon="aliases.search"
+            type="search"
             variant="outlined"
-            class="text-none"
-            @click="changePage(result.lastPage)"
-          >
-            Go to last page
-          </VBtn>
-        </div>
-        <div v-else-if="!result.products.length" class="products-state" role="status">
-          <p>{{ filtersApplied ? 'No products match these filters.' : 'No products yet.' }}</p>
-        </div>
-        <template v-else>
-          <VTable class="products-table" density="comfortable">
-            <caption class="d-sr-only">
-              Product directory
-            </caption>
-            <thead role="rowgroup">
-              <tr role="row">
-                <th scope="col" role="columnheader">Product</th>
-                <th scope="col" role="columnheader">Unit price</th>
-                <th scope="col" role="columnheader">Tax rate</th>
-                <th scope="col" role="columnheader">Stock</th>
-                <th scope="col" role="columnheader">Status</th>
-              </tr>
-            </thead>
-            <tbody role="rowgroup">
-              <tr v-for="product in result.products" :key="product.id" role="row">
-                <th scope="row" role="rowheader">
-                  <div class="product-name">
-                    <button
-                      type="button"
-                      class="product-name-button"
-                      :aria-label="`View ${product.name}`"
-                      @click="openProduct(product.id, $event)"
-                    >
-                      {{ product.name }}
-                    </button>
-                    <span class="product-detail">{{ product.sku }}</span>
-                  </div>
-                </th>
-                <td role="cell" class="product-number">
-                  <span class="product-cell-label" aria-hidden="true">Unit price</span>
-                  {{ product.price }}
-                </td>
-                <td role="cell" class="product-number">
-                  <span class="product-cell-label" aria-hidden="true">Tax rate</span>
-                  {{ product.tax_rate }}%
-                </td>
-                <td role="cell" class="product-number">
-                  <span class="product-cell-label" aria-hidden="true">Stock</span>
-                  {{ product.stock_quantity }}
-                </td>
-                <td role="cell">
-                  <span class="product-cell-label" aria-hidden="true">Status</span>
-                  <VChip
-                    :color="product.is_active ? 'primary' : undefined"
-                    size="small"
-                    variant="tonal"
-                    label
-                  >
-                    {{ product.is_active ? 'Active' : 'Inactive' }}
-                  </VChip>
-                </td>
-              </tr>
-            </tbody>
-          </VTable>
-
-          <footer class="products-footer">
-            <span class="product-detail" aria-live="polite">{{ pageRange }}</span>
-            <nav v-if="result.lastPage > 1" class="product-pages" aria-label="Product pages">
-              <VBtn
-                aria-label="Previous page"
-                :icon="aliases.prev"
-                size="small"
-                rounded="lg"
-                variant="outlined"
-                :disabled="result.currentPage <= 1"
-                @click="changePage(result.currentPage - 1)"
-              />
-              <span class="product-detail"
-                >Page {{ result.currentPage }} of {{ result.lastPage }}</span
-              >
-              <VBtn
-                aria-label="Next page"
-                :icon="aliases.next"
-                size="small"
-                rounded="lg"
-                variant="outlined"
-                :disabled="result.currentPage >= result.lastPage"
-                @click="changePage(result.currentPage + 1)"
-              />
-            </nav>
-          </footer>
-        </template>
+            density="comfortable"
+            maxlength="255"
+            hide-details
+          />
+          <VSelect
+            v-model="status"
+            label="Status"
+            :items="statusOptions"
+            :menu-icon="aliases.dropdown"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          />
+          <div class="product-filter-actions">
+            <VBtn type="submit" color="primary" variant="flat" class="text-none"
+              >Apply filters</VBtn
+            >
+            <VBtn
+              v-if="filtersPresent"
+              type="button"
+              variant="text"
+              class="text-none"
+              @click="clearFilters"
+            >
+              Clear
+            </VBtn>
+          </div>
+        </form>
       </template>
-    </VCard>
+
+      <VTable class="products-table" density="comfortable">
+        <caption class="d-sr-only">
+          Product directory
+        </caption>
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">Product</th>
+            <th scope="col" role="columnheader">Unit price</th>
+            <th scope="col" role="columnheader">Tax rate</th>
+            <th scope="col" role="columnheader">Stock</th>
+            <th scope="col" role="columnheader">Status</th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          <tr v-for="product in result.products" :key="product.id" role="row">
+            <th scope="row" role="rowheader">
+              <div class="product-name">
+                <button
+                  type="button"
+                  class="product-name-button"
+                  :aria-label="`View ${product.name}`"
+                  @click="openProduct(product.id, $event)"
+                >
+                  {{ product.name }}
+                </button>
+                <span class="product-detail">{{ product.sku }}</span>
+              </div>
+            </th>
+            <td role="cell" class="product-number">
+              <span class="product-cell-label" aria-hidden="true">Unit price</span>
+              {{ product.price }}
+            </td>
+            <td role="cell" class="product-number">
+              <span class="product-cell-label" aria-hidden="true">Tax rate</span>
+              {{ product.tax_rate }}%
+            </td>
+            <td role="cell" class="product-number">
+              <span class="product-cell-label" aria-hidden="true">Stock</span>
+              {{ product.stock_quantity }}
+            </td>
+            <td role="cell">
+              <span class="product-cell-label" aria-hidden="true">Status</span>
+              <VChip
+                :color="product.is_active ? 'primary' : undefined"
+                size="small"
+                variant="tonal"
+                label
+              >
+                {{ product.is_active ? 'Active' : 'Inactive' }}
+              </VChip>
+            </td>
+          </tr>
+        </tbody>
+      </VTable>
+    </CatalogDirectoryShell>
     <ProductProfileDialog
       v-if="dialog"
       :product-id="dialog.productId"
@@ -305,12 +242,6 @@ onScopeDispose(() => requests.abort())
   outline: none;
 }
 
-.products-card {
-  border-color: rgba(var(--v-theme-on-surface), 0.14);
-  border-radius: 12px;
-  box-shadow: 0 2px 7px rgba(var(--v-theme-on-surface), 0.045);
-}
-
 .product-filters {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(145px, 0.36fr) auto;
@@ -319,29 +250,11 @@ onScopeDispose(() => requests.abort())
   padding: 16px;
 }
 
-.product-filter-actions,
-.product-pages,
-.products-footer {
+.product-filter-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-}
-
-.product-filter-actions,
-.products-footer {
-  flex-wrap: wrap;
-}
-
-.products-state {
-  display: grid;
-  gap: 12px;
-  justify-items: start;
-  padding: 16px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-}
-
-.products-state p {
-  margin: 0;
 }
 
 .products-table thead {
@@ -384,12 +297,6 @@ onScopeDispose(() => requests.abort())
 .product-detail {
   color: rgba(var(--v-theme-on-surface), 0.77);
   font-size: 0.8125rem;
-}
-
-.products-footer {
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .product-cell-label {
