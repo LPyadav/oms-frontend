@@ -24,3 +24,20 @@ export function formatOrderTotal(amountMinor, currency) {
   const amount = digits.slice(0, -2) + '.' + digits.slice(-2)
   return moneyFormatters.get(currency).format(amount)
 }
+
+const timestampFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+const taxRateFormatter = new Intl.NumberFormat(undefined, {
+  style: 'percent',
+  maximumFractionDigits: 2,
+})
+
+export function formatOrderTimestamp(value) {
+  return timestampFormatter.format(new Date(value))
+}
+
+export function formatOrderTaxRate(basisPoints) {
+  return taxRateFormatter.format(basisPoints / 10_000)
+}

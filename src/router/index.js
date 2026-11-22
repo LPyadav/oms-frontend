@@ -63,13 +63,26 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       {
         path: '/orders',
         component: workspaceLayout,
-        meta: { requiresAuth: true, sectionTitle: 'Order management' },
+        meta: { requiresAuth: true, sectionTitle: 'Order management', requiresOrderView: true },
         children: [
           {
             path: '',
-            name: 'orders',
-            component: () => import('../views/orders/OrderDirectoryView.vue'),
-            meta: { pageTitle: 'Orders', requiresOrderView: true },
+            component: () => import('../views/orders/OrdersOutlet.vue'),
+            children: [
+              {
+                path: '',
+                name: 'orders',
+                component: () => import('../views/orders/OrderDirectoryView.vue'),
+                meta: { pageTitle: 'Orders' },
+              },
+              {
+                path: ':orderId',
+                name: 'order-detail',
+                component: () => import('../views/orders/OrderDetailView.vue'),
+                props: true,
+                meta: { pageTitle: 'Order detail' },
+              },
+            ],
           },
         ],
       },

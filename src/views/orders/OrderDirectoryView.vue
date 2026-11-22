@@ -2,13 +2,15 @@
 import {
   computed,
   nextTick,
-  onMounted,
+  onActivated,
+  onDeactivated,
   onScopeDispose,
   reactive,
   ref,
   useTemplateRef,
   watch,
 } from 'vue'
+import { RouterLink } from 'vue-router'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
@@ -119,10 +121,15 @@ watch(
   },
   { flush: 'sync' },
 )
-onMounted(() => {
+onActivated(() => {
   heading.value?.focus({ preventScroll: true })
-  if (auth.canViewOrders) void load()
+  if (!auth.canViewOrders) return
+
+  const search = filters.search.trim()
+  const page = search === query.value.search ? query.value.page : 1
+  void load({ ...query.value, search, page })
 })
+onDeactivated(() => clearTimeout(searchTimer))
 onScopeDispose(() => {
   clearTimeout(searchTimer)
   requests.abort()
@@ -304,7 +311,12 @@ onScopeDispose(() => {
             <tbody role="rowgroup">
               <tr v-for="order in result.orders" :key="order.id" role="row">
                 <th scope="row" role="rowheader">
-                  <strong>{{ order.order_number }}</strong>
+                  <RouterLink
+                    class="order-detail-link"
+                    :to="{ name: 'order-detail', params: { orderId: order.id } }"
+                  >
+                    {{ order.order_number }}
+                  </RouterLink>
                 </th>
                 <td role="cell">
                   <span class="order-cell-label" aria-hidden="true">Customer</span>
@@ -451,6 +463,12 @@ onScopeDispose(() => {
 .orders-table td {
   padding-block: 10px;
   overflow-wrap: anywhere;
+}
+
+.order-detail-link {
+  color: rgb(var(--v-theme-primary));
+  font-weight: 700;
+  text-underline-offset: 2px;
 }
 
 .order-total {

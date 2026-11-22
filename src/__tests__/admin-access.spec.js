@@ -11,6 +11,7 @@ vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
 vi.mock('../views/customers/CustomerDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/products/ProductDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/OrderDirectoryView.vue', () => ({ default: {} }))
+vi.mock('../views/orders/OrderDetailView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -189,5 +190,27 @@ it.each([
   await router.push('/orders')
 
   expect(router.currentRoute.value.name).toBe(destination)
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})
+
+it('redirects a guest from a direct order detail link', async () => {
+  await router.push('/orders/42')
+
+  expect(router.currentRoute.value.name).toBe('login')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each([
+  { permissions: ['orders.view.any'], destination: 'order-detail' },
+  { permissions: ['orders.view.assigned'], destination: 'order-detail' },
+  { permissions: ['orders.status.update.assigned'], destination: 'access-denied' },
+])('gates a direct order detail link on $permissions', async ({ permissions, destination }) => {
+  rememberAccount(['staff'], permissions)
+
+  await router.push('/orders/42')
+
+  expect(router.currentRoute.value.name).toBe(destination)
+  const expectedOrderId = destination === 'order-detail' ? '42' : undefined
+  expect(router.currentRoute.value.params.orderId).toBe(expectedOrderId)
   expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
 })

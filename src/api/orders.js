@@ -1,4 +1,5 @@
 import { ORDER_PRIORITY, ORDER_STATUS } from '../constants/orders'
+import { ApiError } from './client'
 import { readPaginatedResource } from './pagination'
 
 function isParty(party) {
@@ -50,4 +51,98 @@ export async function loadOrderPage(request, query, signal) {
     page,
     invalidMessage: 'The server returned an invalid order page.',
   })
+}
+
+const detailMoneyFields = ['subtotal_minor', 'discount_total_minor', 'tax_total_minor']
+const itemMoneyFields = [
+  'unit_price_minor',
+  'item_discount_minor',
+  'allocated_order_discount_minor',
+  'tax_minor',
+  'line_total_minor',
+]
+
+const positiveInteger = (value) => Number.isSafeInteger(value) && value > 0
+const nonnegativeInteger = (value) => Number.isSafeInteger(value) && value >= 0
+const nullableText = (value) => value === null || typeof value === 'string'
+const namedText = (value) => typeof value === 'string' && !!value.trim()
+const isTimestamp = (value) => typeof value === 'string' && Number.isFinite(Date.parse(value))
+const historyEntry = (entry) => positiveInteger(entry?.id) && isTimestamp(entry.created_at)
+const actor = (value) => value === null || isParty(value)
+const nullableId = (value) => value === null || positiveInteger(value)
+const validEntries = (values, validate) => Array.isArray(values) && values.every(validate)
+
+function isItem(item) {
+  return (
+    positiveInteger(item?.position) &&
+    positiveInteger(item.quantity) &&
+    namedText(item.product_name) &&
+    namedText(item.product_sku) &&
+    nonnegativeInteger(item.tax_rate_basis_points) &&
+    itemMoneyFields.every((field) => nonnegativeInteger(item[field])) &&
+    Number.isSafeInteger(item.item_discount_minor + item.allocated_order_discount_minor)
+  )
+}
+
+function isStatusEntry(entry) {
+  return (
+    historyEntry(entry) &&
+    Object.hasOwn(ORDER_STATUS, entry.previous_status) &&
+    Object.hasOwn(ORDER_STATUS, entry.new_status) &&
+    nullableText(entry.remarks) &&
+    actor(entry.actor)
+  )
+}
+
+function isNote(entry) {
+  return historyEntry(entry) && typeof entry.body === 'string' && actor(entry.author)
+}
+
+function isAssignment(entry) {
+  return (
+    historyEntry(entry) &&
+    nullableId(entry.previous_assignee_id) &&
+    nullableId(entry.new_assignee_id) &&
+    positiveInteger(entry.actor_id) &&
+    nullableText(entry.actor_name)
+  )
+}
+
+function isSystemActivity(entry) {
+  return (
+    historyEntry(entry) &&
+    namedText(entry.action) &&
+    positiveInteger(entry.actor_id) &&
+    nullableText(entry.actor_name)
+  )
+}
+
+function isOrderDetail(order) {
+  return (
+    isOrder(order) &&
+    detailMoneyFields.every((field) => nonnegativeInteger(order[field])) &&
+    ['email', 'phone', 'address'].every((field) => nullableText(order.customer[field])) &&
+    (order.created_at === null || isTimestamp(order.created_at)) &&
+    (order.completed_at === null || isTimestamp(order.completed_at)) &&
+    validEntries(order.items, isItem) &&
+    validEntries(order.notes, isNote) &&
+    validEntries(order.status_history, isStatusEntry) &&
+    validEntries(order.assignment_history, isAssignment) &&
+    validEntries(order.system_activity, isSystemActivity)
+  )
+}
+
+export async function loadOrder(request, orderId, signal) {
+  const id = Number(orderId)
+  if (!/^\d+$/.test(String(orderId)) || !positiveInteger(id)) {
+    throw new ApiError('This order is unavailable.', { status: 404 })
+  }
+
+  const response = await request(`/api/orders/${id}`, { signal })
+  const order = response?.data?.order
+  if (!isOrderDetail(order) || order.id !== id) {
+    throw new ApiError('The server returned invalid order details.', { code: 'INVALID_RESPONSE' })
+  }
+
+  return order
 }
