@@ -7,8 +7,10 @@ import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import OrderAssignmentDialog from '../../components/orders/OrderAssignmentDialog.vue'
 import OrderDeleteDialog from '../../components/orders/OrderDeleteDialog.vue'
 import OrderItemsCard from '../../components/orders/OrderItemsCard.vue'
+import OrderNoteDialog from '../../components/orders/OrderNoteDialog.vue'
 import OrderStatusDialog from '../../components/orders/OrderStatusDialog.vue'
 import { useOrderDetail } from '../../composables/useOrderDetail'
 import {
@@ -18,6 +20,7 @@ import {
   ORDER_STATUS,
 } from '../../constants/orders'
 import { useAuthStore } from '../../stores/auth'
+import { canAddNoteToOrder, canChangeOrderAssignee } from '../../utils/orderActivityAccess'
 import { formatOrderDate, formatOrderTimestamp, formatOrderTotal } from '../../utils/orderDisplay'
 import { orderActivity, orderTimeline } from '../../utils/orderHistory'
 import { availableOrderStatuses } from '../../utils/orderLifecycle'
@@ -40,6 +43,8 @@ const { order, error, loading, load } = useOrderDetail({
 const canChangeStatus = computed(() => availableOrderStatuses(order.value, auth).length > 0)
 const canEdit = computed(() => auth.canEditOrders && isOrderEditable(order.value?.status))
 const canDelete = computed(() => auth.canDeleteOrders && isOrderDeletable(order.value?.status))
+const canAssign = computed(() => canChangeOrderAssignee(order.value, auth))
+const canAddNote = computed(() => canAddNoteToOrder(order.value, auth))
 const timeline = computed(() => (order.value ? orderTimeline(order.value) : []))
 const activity = computed(() => (order.value ? orderActivity(order.value) : []))
 const errorMessage = computed(() => {
@@ -64,7 +69,7 @@ async function closeDialog() {
   target?.focus({ preventScroll: true })
 }
 
-async function reloadAfterDelete() {
+async function reloadOrderDetail() {
   activeDialog.value = null
   dialogTrigger = null
   await load(props.orderId)
@@ -82,8 +87,16 @@ function applyOrderSnapshot(updated) {
   if (updated.id === Number(props.orderId)) order.value = updated
 }
 
-function finishStatusChange(updated) {
+function finishOrderChange(updated) {
   applyOrderSnapshot(updated)
+  return closeDialog()
+}
+
+function finishNote(orderId, note) {
+  const current = order.value
+  if (current?.id === orderId && !current.notes.some(({ id }) => id === note.id)) {
+    order.value = { ...current, notes: [...current.notes, note] }
+  }
   return closeDialog()
 }
 
@@ -176,7 +189,7 @@ onScopeDispose(() => controller.abort())
         v-if="activeDialog === 'delete' && canDelete"
         :order="order"
         @close="closeDialog"
-        @reload="reloadAfterDelete"
+        @reload="reloadOrderDetail"
         @deleted="finishDelete"
       />
       <OrderStatusDialog
@@ -185,7 +198,25 @@ onScopeDispose(() => controller.abort())
         :order="order"
         @close="closeDialog"
         @refreshed="applyOrderSnapshot"
-        @changed="finishStatusChange"
+        @changed="finishOrderChange"
+      />
+      <OrderAssignmentDialog
+        v-if="activeDialog === 'assignment'"
+        :key="order.id"
+        :order="order"
+        @close="closeDialog"
+        @refreshed="applyOrderSnapshot"
+        @changed="finishOrderChange"
+        @unavailable="reloadOrderDetail"
+      />
+      <OrderNoteDialog
+        v-if="activeDialog === 'note'"
+        :key="order.id"
+        :order="order"
+        @close="closeDialog"
+        @refreshed="applyOrderSnapshot"
+        @added="finishNote"
+        @unavailable="reloadOrderDetail"
       />
       <div class="detail-overview">
         <VCard
@@ -209,7 +240,19 @@ onScopeDispose(() => controller.abort())
             </div>
             <div>
               <dt>Assigned to</dt>
-              <dd>{{ order.assignee?.name ?? 'Unassigned' }}</dd>
+              <dd class="detail-assignee">
+                <span>{{ order.assignee?.name ?? 'Unassigned' }}</span>
+                <VBtn
+                  v-if="canAssign"
+                  color="primary"
+                  size="small"
+                  variant="outlined"
+                  class="text-none"
+                  @click="openDialog('assignment', $event)"
+                >
+                  Change assignee
+                </VBtn>
+              </dd>
             </div>
             <div>
               <dt>Order total</dt>
@@ -283,7 +326,18 @@ onScopeDispose(() => controller.abort())
         border
         aria-labelledby="activity-heading"
       >
-        <h2 id="activity-heading">Activity</h2>
+        <div class="activity-heading">
+          <h2 id="activity-heading">Activity</h2>
+          <VBtn
+            v-if="canAddNote"
+            color="primary"
+            variant="outlined"
+            class="text-none"
+            @click="openDialog('note', $event)"
+          >
+            Add note
+          </VBtn>
+        </div>
         <p v-if="!activity.length" class="activity-empty">No activity recorded.</p>
         <ol v-else class="detail-activity" role="list">
           <li v-for="event in activity" :key="event.key">
@@ -390,6 +444,13 @@ onScopeDispose(() => controller.abort())
   overflow-wrap: anywhere;
 }
 
+.detail-assignee {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
 .detail-total {
   color: rgb(var(--v-theme-primary));
   font-variant-numeric: tabular-nums;
@@ -464,6 +525,19 @@ onScopeDispose(() => controller.abort())
 
 .detail-activity li:last-child {
   padding-bottom: 0;
+}
+
+.activity-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+
+.detail-panel .activity-heading h2 {
+  margin: 0;
 }
 
 .activity-header {

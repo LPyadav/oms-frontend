@@ -267,3 +267,33 @@ export async function changeOrderStatus(request, orderId, body, signal) {
 
   return updated
 }
+
+export async function assignOrder(request, orderId, body, signal) {
+  const response = await request(`${orderPath(orderId)}/assign`, { method: 'POST', body, signal })
+  const updated = readOrder(response, Number(orderId))
+  const assigneeId = updated.assignee?.id ?? null
+  if (
+    assigneeId !== body.assignee_id ||
+    ![body.expected_version, body.expected_version + 1].includes(updated.version)
+  ) {
+    throw new ApiError('The server did not confirm the requested assignment.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+
+  return updated
+}
+
+export async function addOrderNote(request, orderId, body, signal) {
+  const response = await request(`${orderPath(orderId)}/notes`, {
+    method: 'POST',
+    body: { body },
+    signal,
+  })
+  const note = response?.data?.note
+  if (!isNote(note) || note.body !== body) {
+    throw new ApiError('The server did not confirm the note.', { code: 'INVALID_RESPONSE' })
+  }
+
+  return note
+}
