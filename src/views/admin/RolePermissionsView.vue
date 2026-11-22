@@ -273,42 +273,50 @@ onScopeDispose(() => requests.abort())
         <form v-else @submit.prevent="submitPermissions">
           <fieldset class="permissions-fieldset" :disabled="!canEditPermissions">
             <legend>Permissions</legend>
-            <p v-if="!permissionGroups.length">No permissions to display.</p>
-            <details
-              v-for="([group, permissions], index) in permissionGroups"
-              :key="selectedRole.id + '-' + group"
-              :open="index === 0"
+            <section
+              v-if="permissionGroups.length"
+              :key="selectedRole.id"
+              class="permission-groups"
+              aria-label="Permission groups"
+              tabindex="0"
             >
-              <summary>{{ group }}</summary>
-              <VCheckbox
-                v-for="permission in permissions"
-                :key="permission"
-                v-model="selectedPermissions"
-                :value="permission"
-                :true-icon="aliases.checkboxOn"
-                :false-icon="aliases.checkboxOff"
-                :disabled="!canEditPermissions || blockedPermissions.has(permission)"
-                color="primary"
-                density="compact"
-                hide-details
+              <details
+                v-for="([group, permissions], index) in permissionGroups"
+                :key="group"
+                :open="index === 0"
               >
-                <template #label>
-                  <span>
-                    {{ getPermissionLabel(permission) }}
-                    <span
-                      v-if="!permissionsReadOnly && adminOnlyPermissions.has(permission)"
-                      class="permission-restriction"
-                    >
-                      {{
-                        blockedPermissions.has(permission)
-                          ? '· Admin only'
-                          : '· Existing Admin-only grant'
-                      }}
+                <summary>{{ group }}</summary>
+                <VCheckbox
+                  v-for="permission in permissions"
+                  :key="permission"
+                  v-model="selectedPermissions"
+                  :value="permission"
+                  :true-icon="aliases.checkboxOn"
+                  :false-icon="aliases.checkboxOff"
+                  :disabled="!canEditPermissions || blockedPermissions.has(permission)"
+                  color="primary"
+                  density="compact"
+                  hide-details
+                >
+                  <template #label>
+                    <span>
+                      {{ getPermissionLabel(permission) }}
+                      <span
+                        v-if="!permissionsReadOnly && adminOnlyPermissions.has(permission)"
+                        class="permission-restriction"
+                      >
+                        {{
+                          blockedPermissions.has(permission)
+                            ? '· Admin only'
+                            : '· Existing Admin-only grant'
+                        }}
+                      </span>
                     </span>
-                  </span>
-                </template>
-              </VCheckbox>
-            </details>
+                  </template>
+                </VCheckbox>
+              </details>
+            </section>
+            <p v-else>No permissions to display.</p>
             <VAlert
               v-if="permissionError"
               class="mt-3"
@@ -465,6 +473,20 @@ onScopeDispose(() => requests.abort())
   font-weight: 600;
 }
 
+.permission-groups {
+  block-size: clamp(10rem, calc(100dvh - 26rem), 28rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+  padding-inline-end: 8px;
+}
+
+.permission-groups:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
+}
+
 .permissions-fieldset details,
 .permission-footer {
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
@@ -489,6 +511,10 @@ onScopeDispose(() => requests.abort())
 @media (max-width: 650px) {
   .role-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .permission-groups {
+    block-size: clamp(9rem, 40dvh, 18rem);
   }
 }
 </style>
