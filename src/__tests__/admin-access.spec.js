@@ -12,6 +12,7 @@ vi.mock('../views/customers/CustomerDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/products/ProductDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/OrderDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/OrderDetailView.vue', () => ({ default: {} }))
+vi.mock('../views/orders/CreateOrderView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -214,3 +215,19 @@ it.each([
   expect(router.currentRoute.value.params.orderId).toBe(expectedOrderId)
   expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
 })
+
+it.each([
+  { permissions: ['orders.view.any', 'orders.create'], destination: 'order-create' },
+  { permissions: ['orders.view.any'], destination: 'access-denied' },
+  { permissions: ['orders.view.assigned', 'orders.create'], destination: 'access-denied' },
+])(
+  'gates the create route on both required grants for $permissions',
+  async ({ permissions, destination }) => {
+    rememberAccount(['manager'], permissions)
+
+    await router.push('/orders/new')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)

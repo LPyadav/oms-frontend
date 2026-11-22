@@ -143,6 +143,14 @@ onScopeDispose(() => {
       <VChip v-if="!auth.canViewAllOrders" size="small" color="primary" variant="tonal" label>
         Assigned to you
       </VChip>
+      <VBtn
+        v-if="auth.canCreateOrders"
+        :to="{ name: 'order-create' }"
+        color="primary"
+        variant="flat"
+        class="text-none"
+        >Create order</VBtn
+      >
     </header>
 
     <VCard color="surface" variant="flat" border class="orders-card">

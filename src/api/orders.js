@@ -146,3 +146,61 @@ export async function loadOrder(request, orderId, signal) {
 
   return order
 }
+
+export function loadOrderAssigneePage(request, { page, search }, signal) {
+  const params = new URLSearchParams({ page: String(page) })
+  if (search) params.set('search', search)
+
+  return request(`/api/orders/assignees?${params}`, { signal }).then((response) =>
+    readPaginatedResource(response, {
+      resource: 'assignees',
+      isEntry: isParty,
+      page,
+      invalidMessage: 'The server returned an invalid assignee page.',
+    }),
+  )
+}
+
+export async function previewOrderPricing(request, { items, order_discount_minor }, signal) {
+  const response = await request('/api/orders/preview', {
+    method: 'POST',
+    body: { items, order_discount_minor },
+    signal,
+  })
+  const pricing = response?.data?.pricing
+  if (
+    typeof pricing?.currency !== 'string' ||
+    !/^[A-Z]{3}$/.test(pricing.currency) ||
+    ![...detailMoneyFields, 'grand_total_minor', 'order_discount_minor'].every((field) =>
+      nonnegativeInteger(pricing[field]),
+    ) ||
+    pricing.order_discount_minor !== order_discount_minor ||
+    !validEntries(pricing.items, isItem) ||
+    pricing.items.length !== items.length ||
+    !pricing.items.every(
+      (line, index) =>
+        line.product_id === items[index].product_id &&
+        line.quantity === items[index].quantity &&
+        line.item_discount_minor === items[index].item_discount_minor,
+    )
+  ) {
+    throw new ApiError('The server returned invalid order pricing.', { code: 'INVALID_RESPONSE' })
+  }
+
+  return pricing
+}
+
+export async function createOrder(request, body, idempotencyKey, signal) {
+  const response = await request('/api/orders', {
+    method: 'POST',
+    body,
+    idempotencyKey,
+    signal,
+  })
+  const order = response?.data?.order
+  if (!isOrderDetail(order)) {
+    throw new ApiError('The server returned an invalid saved order.', { code: 'INVALID_RESPONSE' })
+  }
+
+  return order
+}
