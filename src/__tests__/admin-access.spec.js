@@ -9,6 +9,7 @@ vi.mock('../views/AccessDeniedView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
 vi.mock('../views/customers/CustomerDirectoryView.vue', () => ({ default: {} }))
+vi.mock('../views/products/ProductDirectoryView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -120,3 +121,46 @@ it.each([
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
   },
 )
+
+it('sends a signed-out visitor from the product directory to login', async () => {
+  await router.push('/catalog/products')
+
+  expect(router.currentRoute.value.name).toBe('login')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each([
+  { roles: ['admin'], permissions: ['products.view'], destination: 'catalog-products' },
+  { roles: ['manager'], permissions: ['products.view'], destination: 'catalog-products' },
+  { roles: ['staff'], permissions: ['products.view'], destination: 'catalog-products' },
+  {
+    roles: ['staff'],
+    permissions: ['customers.view.assigned-orders'],
+    destination: 'access-denied',
+  },
+  { roles: ['admin'], permissions: ['products.manage'], destination: 'access-denied' },
+  { roles: ['manager'], permissions: ['customers.view'], destination: 'access-denied' },
+])(
+  'checks product directory access for $roles with $permissions',
+  async ({ roles, permissions, destination }) => {
+    rememberAccount(roles, permissions)
+
+    await router.push('/catalog/products')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it.each([
+  { permissions: ['products.view'], destination: 'catalog-products' },
+  { permissions: ['customers.view', 'products.view'], destination: 'catalog-customers' },
+  { permissions: [], destination: 'access-denied' },
+])('routes the catalog landing page for $permissions', async ({ permissions, destination }) => {
+  rememberAccount(['staff'], permissions)
+
+  await router.push('/catalog')
+
+  expect(router.currentRoute.value.name).toBe(destination)
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})

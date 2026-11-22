@@ -1,4 +1,5 @@
 import { ApiError } from './client'
+import { loadCatalogPage } from './catalogDirectory'
 
 const customersPath = '/api/customers'
 
@@ -15,35 +16,8 @@ function isCustomer(customer) {
   )
 }
 
-export async function loadCustomerPage(request, { page, search, isActive }, signal) {
-  const params = new URLSearchParams({ page: String(page) })
-  if (search) params.set('search', search)
-  if (isActive !== null) params.set('is_active', isActive ? '1' : '0')
-
-  const { data, meta } = await request(customersPath + '?' + params, { signal })
-  if (
-    !Array.isArray(data?.customers) ||
-    !data.customers.every(isCustomer) ||
-    meta?.current_page !== page ||
-    !Number.isSafeInteger(meta.per_page) ||
-    meta.per_page < 1 ||
-    !Number.isSafeInteger(meta.total) ||
-    meta.total < 0 ||
-    !Number.isSafeInteger(meta.last_page) ||
-    meta.last_page < 1
-  ) {
-    throw new ApiError('The server returned an invalid customer list.', {
-      code: 'INVALID_RESPONSE',
-    })
-  }
-
-  return {
-    customers: data.customers,
-    currentPage: meta.current_page,
-    perPage: meta.per_page,
-    total: meta.total,
-    lastPage: meta.last_page,
-  }
+export function loadCustomerPage(request, query, signal) {
+  return loadCatalogPage(request, { resource: 'customers', isEntry: isCustomer }, query, signal)
 }
 
 async function requestCustomer(request, path, options, { id, active } = {}) {

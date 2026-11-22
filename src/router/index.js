@@ -42,8 +42,8 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       },
       {
         path: '/catalog',
+        name: 'catalog-home',
         component: workspaceLayout,
-        redirect: { name: 'catalog-customers' },
         meta: { requiresAuth: true, sectionTitle: 'Catalog' },
         children: [
           {
@@ -51,6 +51,12 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             name: 'catalog-customers',
             component: () => import('../views/customers/CustomerDirectoryView.vue'),
             meta: { pageTitle: 'Customers', requiresCustomerView: true },
+          },
+          {
+            path: 'products',
+            name: 'catalog-products',
+            component: () => import('../views/products/ProductDirectoryView.vue'),
+            meta: { pageTitle: 'Products', requiresProductView: true },
           },
         ],
       },
@@ -77,10 +83,17 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     if (auth.status !== AUTH_STATUS.UNAVAILABLE) await auth.initialize()
 
     if (requiresAuth && !auth.isAuthenticated) return { name: 'login', replace: true }
+
+    if (to.name === 'catalog-home') {
+      if (auth.canViewCustomers) return { name: 'catalog-customers', replace: true }
+      if (auth.canViewProducts) return { name: 'catalog-products', replace: true }
+      return { name: 'access-denied', replace: true }
+    }
     if (
       (to.meta.requiresUserManagement && !auth.canManageUsers) ||
       (to.meta.requiresRoleManagement && !auth.canManageRoles) ||
-      (to.meta.requiresCustomerView && !auth.canViewCustomers)
+      (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
+      (to.meta.requiresProductView && !auth.canViewProducts)
     ) {
       return { name: 'access-denied', replace: true }
     }

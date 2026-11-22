@@ -158,6 +158,14 @@ function focusMain() {
           rounded="lg"
           @click="mobileNavigationOpen = false"
         />
+        <VListItem
+          v-if="auth.canViewProducts"
+          :to="{ name: 'catalog-products' }"
+          :prepend-icon="aliases.menu"
+          title="Products"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
       </VList>
 
       <template #append>
