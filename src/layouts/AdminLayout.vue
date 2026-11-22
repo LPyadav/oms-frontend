@@ -20,7 +20,7 @@ const { mdAndUp } = useDisplay()
 const mobileNavigationOpen = ref(false)
 const menuButton = useTemplateRef('menuButton')
 const closeButton = useTemplateRef('closeButton')
-const main = useTemplateRef('main')
+const contentScroll = useTemplateRef('contentScroll')
 
 const drawerOpen = computed({
   get: () => mdAndUp.value || mobileNavigationOpen.value,
@@ -44,8 +44,16 @@ watch(
   { flush: 'post' },
 )
 
+watch(
+  () => route.path,
+  () => {
+    if (contentScroll.value) contentScroll.value.scrollTop = 0
+  },
+  { flush: 'post' },
+)
+
 function focusMain() {
-  main.value?.$el.focus()
+  contentScroll.value?.focus({ preventScroll: true })
 }
 </script>
 
@@ -191,16 +199,18 @@ function focusMain() {
       </div>
     </VAppBar>
 
-    <VMain
-      id="admin-content"
-      ref="main"
-      class="admin-content"
-      tabindex="-1"
-      :inert="mobileNavigationOpen"
-      scrollable
-    >
-      <div class="admin-frame">
-        <RouterView />
+    <VMain class="admin-content" :inert="mobileNavigationOpen">
+      <div
+        id="admin-content"
+        ref="contentScroll"
+        class="admin-scroll-region"
+        role="region"
+        aria-label="Administration content"
+        tabindex="0"
+      >
+        <div class="admin-frame">
+          <RouterView />
+        </div>
       </div>
     </VMain>
   </VLayout>
@@ -345,7 +355,23 @@ function focusMain() {
 }
 
 .admin-content {
-  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  min-block-size: 0;
+}
+
+.admin-scroll-region {
+  flex: 1 1 0;
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
+.admin-scroll-region:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -2px;
 }
 
 @media (max-width: 440px) {
