@@ -17,7 +17,6 @@ const auth = useAuthStore()
 const heading = useTemplateRef('heading')
 const dialog = shallowRef(null)
 let dialogTrigger
-const search = ref('')
 const status = ref('all')
 const statusOptions = [
   { title: 'All statuses', value: 'all' },
@@ -26,21 +25,25 @@ const statusOptions = [
 ]
 const statusFilters = { all: null, active: true, inactive: false }
 const requests = new AbortController()
-const { query, result, error, loading, load } = useCustomerDirectory({
+const {
+  search,
+  query,
+  result,
+  error,
+  loading,
+  load,
+  applyFilters: applyDirectoryFilters,
+} = useCustomerDirectory({
   request: auth.request,
   signal: requests.signal,
 })
 const filtersApplied = computed(() => !!query.value.search || query.value.isActive !== null)
 const filtersPresent = computed(
-  () => filtersApplied.value || !!search.value.trim() || status.value !== 'all',
+  () => filtersApplied.value || !!search.value?.trim() || status.value !== 'all',
 )
 
 function applyFilters() {
-  return load({
-    page: 1,
-    search: search.value.trim(),
-    isActive: statusFilters[status.value] ?? null,
-  })
+  return applyDirectoryFilters(statusFilters[status.value] ?? null)
 }
 
 async function clearFilters() {
