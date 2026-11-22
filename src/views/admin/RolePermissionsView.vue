@@ -3,15 +3,15 @@ import { computed, nextTick, onMounted, onScopeDispose, ref, useTemplateRef } fr
 import { useRouter } from 'vue-router'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
-import { VCard } from 'vuetify/components/VCard'
-import { VCheckbox } from 'vuetify/components/VCheckbox'
 import { VList, VListItem } from 'vuetify/components/VList'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
-import DirectoryState from '../../components/directory/DirectoryState.vue'
 import AdminRoleNameDialog from '../../components/admin/AdminRoleNameDialog.vue'
+import AdminRolePermissionPanel from '../../components/admin/AdminRolePermissionPanel.vue'
+import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
+import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
+import DirectoryState from '../../components/directory/DirectoryState.vue'
 import { isBuiltInRole, useRoleManagement } from '../../composables/useRoleManagement'
 import { useAuthStore } from '../../stores/auth'
-import { getPermissionLabel, groupPermissions } from '../../utils/permissions'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -54,11 +54,17 @@ const {
 
 const busy = computed(() => saving.value || refreshingAccess.value)
 const canEditPermissions = computed(() => permissionsEditable.value && !refreshingAccess.value)
-const permissionGroups = computed(() =>
-  groupPermissions(
+const permissionKeys = computed(
+  () =>
     (permissionsReadOnly.value ? selectedRole.value?.permissions : catalog.value?.permissions) ??
-      [],
-  ),
+    [],
+)
+const permissionCatalogError = computed(
+  () =>
+    catalogError.value ||
+    (missingPermissions.value
+      ? 'Some assigned permissions are missing from the catalog. Refresh before saving.'
+      : ''),
 )
 const roleDescription = computed(() => {
   if (permissionsReadOnly.value) return 'Built-in role · permissions are read-only'
@@ -164,7 +170,7 @@ onScopeDispose(() => requests.abort())
     </VAlert>
 
     <div class="role-grid">
-      <VCard color="surface" variant="flat" border class="role-card">
+      <DirectoryPanel class="role-card">
         <header class="role-card-header">
           <h2 ref="rolesHeading" tabindex="-1">Roles</h2>
         </header>
@@ -209,37 +215,22 @@ onScopeDispose(() => requests.abort())
               @click="selectRole(role)"
             />
           </VList>
-          <nav
+          <DirectoryPagination
             v-if="page.lastPage > 1 || page.currentPage > page.lastPage"
             class="role-pagination"
-            aria-label="Role pages"
-          >
-            <VBtn
-              aria-label="Previous roles page"
-              :icon="aliases.prev"
-              size="small"
-              variant="outlined"
-              :disabled="busy || page.currentPage <= 1"
-              @click="changePage(Math.min(page.currentPage - 1, page.lastPage))"
-            />
-            <span>Page {{ page.currentPage }} of {{ page.lastPage }}</span>
-            <VBtn
-              aria-label="Next roles page"
-              :icon="aliases.next"
-              size="small"
-              variant="outlined"
-              :disabled="busy || page.currentPage >= page.lastPage"
-              @click="changePage(page.currentPage + 1)"
-            />
-          </nav>
+            label="Role pages"
+            previous-label="Previous roles page"
+            next-label="Next roles page"
+            :current-page="page.currentPage"
+            :last-page="page.lastPage"
+            :disabled="busy"
+            @page-change="changePage"
+          />
         </template>
-      </VCard>
+      </DirectoryPanel>
 
-      <VCard
+      <DirectoryPanel
         v-if="selectedRole && !pageLoading && !pageError"
-        color="surface"
-        variant="flat"
-        border
         class="role-card"
         aria-labelledby="selected-role-name"
       >
@@ -260,99 +251,23 @@ onScopeDispose(() => requests.abort())
           </VBtn>
         </header>
 
-        <DirectoryState
-          v-if="!permissionsReadOnly && catalogLoading"
-          class="role-state"
-          kind="loading"
-          message="Loading permissions…"
+        <AdminRolePermissionPanel
+          v-model="selectedPermissions"
+          :role-id="selectedRole.id"
+          :permission-keys="permissionKeys"
+          :read-only="permissionsReadOnly"
+          :editable="canEditPermissions"
+          :admin-only-permissions="adminOnlyPermissions"
+          :blocked-permissions="blockedPermissions"
+          :loading="catalogLoading"
+          :load-error="permissionCatalogError"
+          :error="permissionError"
+          :saving="saving && !nameDialog"
+          :can-save="canSavePermissions && !refreshingAccess"
+          @retry="loadCatalog"
+          @submit="submitPermissions"
         />
-        <DirectoryState
-          v-else-if="!permissionsReadOnly && (catalogError || missingPermissions)"
-          class="role-state"
-          kind="error"
-          :message="
-            catalogError ||
-            'Some assigned permissions are missing from the catalog. Refresh before saving.'
-          "
-        >
-          <template #actions>
-            <VBtn type="button" variant="outlined" class="text-none" @click="loadCatalog">
-              Try again
-            </VBtn>
-          </template>
-        </DirectoryState>
-        <form v-else @submit.prevent="submitPermissions">
-          <fieldset class="permissions-fieldset" :disabled="!canEditPermissions">
-            <legend>Permissions</legend>
-            <section
-              v-if="permissionGroups.length"
-              :key="selectedRole.id"
-              class="permission-groups"
-              aria-label="Permission groups"
-              tabindex="0"
-            >
-              <details
-                v-for="([group, permissions], index) in permissionGroups"
-                :key="group"
-                :open="index === 0"
-              >
-                <summary>{{ group }}</summary>
-                <VCheckbox
-                  v-for="permission in permissions"
-                  :key="permission"
-                  v-model="selectedPermissions"
-                  :value="permission"
-                  :true-icon="aliases.checkboxOn"
-                  :false-icon="aliases.checkboxOff"
-                  :disabled="!canEditPermissions || blockedPermissions.has(permission)"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                >
-                  <template #label>
-                    <span>
-                      {{ getPermissionLabel(permission) }}
-                      <span
-                        v-if="!permissionsReadOnly && adminOnlyPermissions.has(permission)"
-                        class="permission-restriction"
-                      >
-                        {{
-                          blockedPermissions.has(permission)
-                            ? '· Admin only'
-                            : '· Existing Admin-only grant'
-                        }}
-                      </span>
-                    </span>
-                  </template>
-                </VCheckbox>
-              </details>
-            </section>
-            <p v-else>No permissions to display.</p>
-            <VAlert
-              v-if="permissionError"
-              class="mt-3"
-              type="error"
-              variant="tonal"
-              :icon="false"
-              role="alert"
-            >
-              {{ permissionError }}
-            </VAlert>
-          </fieldset>
-          <footer v-if="!permissionsReadOnly" class="permission-footer">
-            <VBtn
-              type="submit"
-              color="primary"
-              variant="flat"
-              class="text-none"
-              :loading="saving && !nameDialog"
-              :disabled="!canSavePermissions || refreshingAccess"
-            >
-              Save permissions
-            </VBtn>
-          </footer>
-        </form>
-      </VCard>
+      </DirectoryPanel>
     </div>
 
     <AdminRoleNameDialog
@@ -377,7 +292,6 @@ onScopeDispose(() => requests.abort())
 
 .role-page-header,
 .role-card-header,
-.permission-footer,
 .role-pagination {
   display: flex;
   flex-wrap: wrap;
@@ -419,9 +333,6 @@ onScopeDispose(() => requests.abort())
 
 .role-card {
   min-width: 0;
-  border-radius: 12px;
-  border-color: rgba(var(--v-theme-on-surface), 0.14);
-  box-shadow: 0 2px 7px rgba(var(--v-theme-on-surface), 0.045);
 }
 
 .role-list {
@@ -441,7 +352,6 @@ onScopeDispose(() => requests.abort())
 
 .role-card-header,
 .role-state,
-.permission-footer,
 .role-pagination {
   padding: 14px 16px;
 }
@@ -471,61 +381,9 @@ onScopeDispose(() => requests.abort())
   font-size: 0.8125rem;
 }
 
-.permissions-fieldset {
-  min-width: 0;
-  margin: 14px 16px;
-  padding: 0;
-  border: 0;
-}
-
-.permissions-fieldset legend,
-.permissions-fieldset summary {
-  padding-block: 8px;
-  font-weight: 600;
-}
-
-.permission-groups {
-  block-size: clamp(10rem, calc(100dvh - 26rem), 28rem);
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
-  overflow-wrap: anywhere;
-  padding-inline-end: 8px;
-}
-
-.permission-groups:focus-visible {
-  outline: 2px solid rgb(var(--v-theme-primary));
-  outline-offset: -2px;
-}
-
-.permissions-fieldset details,
-.permission-footer {
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-}
-
-.permissions-fieldset details {
-  padding-bottom: 3px;
-}
-
-.permissions-fieldset summary {
-  cursor: pointer;
-}
-
-.permission-footer {
-  justify-content: flex-end;
-}
-
-.permission-restriction {
-  font-size: 0.8125rem;
-}
-
 @media (max-width: 650px) {
   .role-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .permission-groups {
-    block-size: clamp(9rem, 40dvh, 18rem);
   }
 }
 </style>

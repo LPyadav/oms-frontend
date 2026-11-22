@@ -59,6 +59,12 @@ npm run build
 
 Use `npm run lint:fix` to apply supported lint fixes. The production build writes assets to `dist/`.
 
+## Admin permission catalog
+
+Laravel's `GET /api/admin/permissions` returns permission keys in `data.permissions` and their Admin-only subset in `data.admin_only_permissions`. The role and direct-user permission editors save keys, and Laravel enforces grant rules.
+
+Both editors share frontend display labels and grouping rules. A permission without a mapped label displays its key. Keys with an unrecognized prefix appear under **Other permissions**. Review the display mapping when the backend adds, renames, or removes a permission key. [Permission display helpers](src/utils/permissions.js)
+
 ## Epic 01 — Authentication
 
 Epic 01 adds the OMS sign-in flow, bearer-token session management, and a protected workspace. It also establishes the frontend formatting conventions and Vuetify theme and keeps the public connection check compatible with both Laravel health response formats.
