@@ -1,25 +1,26 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref } from 'vue'
 
-const status = ref("checking");
+const status = ref('checking')
 
 async function checkApi() {
-  status.value = "checking";
+  status.value = 'checking'
 
   try {
-    const response = await fetch("/api/health", {
-      headers: { Accept: "application/json" },
+    const response = await fetch('/api/health', {
+      headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(5000),
-    });
+    })
 
-    const data = response.ok ? await response.json() : null;
-    status.value = data?.status === "ok" ? "connected" : "unavailable";
+    const payload = response.ok ? await response.json() : null
+    const healthStatus = payload?.data?.status ?? payload?.status
+    status.value = healthStatus === 'ok' ? 'connected' : 'unavailable'
   } catch {
-    status.value = "unavailable";
+    status.value = 'unavailable'
   }
 }
 
-onMounted(checkApi);
+onMounted(checkApi)
 </script>
 
 <template>

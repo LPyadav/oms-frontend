@@ -8,14 +8,19 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:unit": "vitest",
-    "lint": "run-s \"lint:*\"",
-    "lint:oxlint": "oxlint . --fix",
-    "lint:eslint": "eslint . --fix --cache"
+    "lint": "run-s lint:oxlint lint:eslint",
+    "lint:oxlint": "oxlint .",
+    "lint:eslint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:fix": "oxlint . --fix && eslint . --fix"
   },
   "dependencies": {
+    "@fontsource/roboto": "5.3.0",
     "pinia": "^4.0.3",
     "vue": "^3.5.42",
-    "vue-router": "^5.3.1"
+    "vue-router": "^5.3.1",
+    "vuetify": "4.3.4"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -28,6 +33,7 @@
     "jsdom": "^30.0.1",
     "npm-run-all2": "^9.0.3",
     "oxlint": "~1.82.0",
+    "prettier": "3.10.1",
     "vite": "^8.2.2",
     "vite-plugin-vue-devtools": "^8.2.1",
     "vitest": "^4.1.11",
