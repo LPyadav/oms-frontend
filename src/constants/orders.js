@@ -8,6 +8,15 @@ export const ORDER_STATUS = Object.freeze({
   cancelled: 'Cancelled',
 })
 
+export const ORDER_WORKFLOW = Object.freeze([
+  'draft',
+  'pending',
+  'confirmed',
+  'processing',
+  'ready',
+  'completed',
+])
+
 export const ORDER_PRIORITY = Object.freeze({
   low: 'Low',
   normal: 'Normal',

@@ -255,3 +255,15 @@ export async function deleteOrder(request, orderId, version, signal) {
     throw new ApiError('The server did not confirm the deletion.', { code: 'INVALID_RESPONSE' })
   }
 }
+
+export async function changeOrderStatus(request, orderId, body, signal) {
+  const response = await request(`${orderPath(orderId)}/status`, { method: 'POST', body, signal })
+  const updated = readOrder(response, Number(orderId))
+  if (updated.status !== body.status || updated.version !== body.expected_version + 1) {
+    throw new ApiError('The server did not confirm the requested status change.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+
+  return updated
+}

@@ -9,6 +9,7 @@ import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import OrderDeleteDialog from '../../components/orders/OrderDeleteDialog.vue'
 import OrderItemsCard from '../../components/orders/OrderItemsCard.vue'
+import OrderStatusDialog from '../../components/orders/OrderStatusDialog.vue'
 import { useOrderDetail } from '../../composables/useOrderDetail'
 import {
   isOrderDeletable,
@@ -19,6 +20,7 @@ import {
 import { useAuthStore } from '../../stores/auth'
 import { formatOrderDate, formatOrderTimestamp, formatOrderTotal } from '../../utils/orderDisplay'
 import { orderActivity, orderTimeline } from '../../utils/orderHistory'
+import { availableOrderStatuses } from '../../utils/orderLifecycle'
 
 const props = defineProps({
   orderId: { type: String, required: true },
@@ -26,8 +28,8 @@ const props = defineProps({
 
 const auth = useAuthStore()
 const router = useRouter()
-const deleteOpen = ref(false)
-let deleteTrigger
+const activeDialog = ref(null)
+let dialogTrigger
 const heading = useTemplateRef('heading')
 const controller = new AbortController()
 const { order, error, loading, load } = useOrderDetail({
@@ -35,6 +37,7 @@ const { order, error, loading, load } = useOrderDetail({
   signal: controller.signal,
 })
 
+const canChangeStatus = computed(() => availableOrderStatuses(order.value, auth).length > 0)
 const canEdit = computed(() => auth.canEditOrders && isOrderEditable(order.value?.status))
 const canDelete = computed(() => auth.canDeleteOrders && isOrderDeletable(order.value?.status))
 const timeline = computed(() => (order.value ? orderTimeline(order.value) : []))
@@ -47,40 +50,49 @@ const errorMessage = computed(() => {
 })
 const canRetry = computed(() => error.value && ![403, 404].includes(error.value.status))
 
-function openDelete(event) {
-  deleteTrigger = event.currentTarget
-  deleteOpen.value = true
+function openDialog(name, event) {
+  dialogTrigger = event.currentTarget
+  activeDialog.value = name
 }
 
-async function closeDelete() {
-  deleteOpen.value = false
-  const trigger = deleteTrigger
-  deleteTrigger = null
+async function closeDialog() {
+  activeDialog.value = null
+  const trigger = dialogTrigger
+  dialogTrigger = null
   await nextTick()
   const target = trigger?.isConnected ? trigger : heading.value
   target?.focus({ preventScroll: true })
 }
 
 async function reloadAfterDelete() {
-  deleteOpen.value = false
-  deleteTrigger = null
+  activeDialog.value = null
+  dialogTrigger = null
   await load(props.orderId)
   await nextTick()
   heading.value?.focus({ preventScroll: true })
 }
 
 function finishDelete() {
-  deleteOpen.value = false
-  deleteTrigger = null
+  activeDialog.value = null
+  dialogTrigger = null
   return router.replace({ name: 'orders' })
+}
+
+function applyOrderSnapshot(updated) {
+  if (updated.id === Number(props.orderId)) order.value = updated
+}
+
+function finishStatusChange(updated) {
+  applyOrderSnapshot(updated)
+  return closeDialog()
 }
 
 watch(
   () => props.orderId,
   async (id) => {
     if (!auth.canViewOrders) return
-    deleteOpen.value = false
-    deleteTrigger = null
+    activeDialog.value = null
+    dialogTrigger = null
     void load(id)
     await nextTick()
     heading.value?.focus({ preventScroll: true })
@@ -116,7 +128,16 @@ onScopeDispose(() => controller.abort())
         >
           {{ ORDER_STATUS[order.status] }}
         </VChip>
-        <div v-if="canEdit || canDelete" class="detail-actions">
+        <div v-if="canChangeStatus || canEdit || canDelete" class="detail-actions">
+          <VBtn
+            v-if="canChangeStatus"
+            color="primary"
+            variant="flat"
+            class="text-none"
+            @click="openDialog('status', $event)"
+          >
+            Change status
+          </VBtn>
           <VBtn
             v-if="canEdit"
             :to="{ name: 'order-edit', params: { orderId: order.id } }"
@@ -126,7 +147,13 @@ onScopeDispose(() => controller.abort())
           >
             Edit order
           </VBtn>
-          <VBtn v-if="canDelete" color="error" variant="text" class="text-none" @click="openDelete">
+          <VBtn
+            v-if="canDelete"
+            color="error"
+            variant="text"
+            class="text-none"
+            @click="openDialog('delete', $event)"
+          >
             Delete order
           </VBtn>
         </div>
@@ -146,11 +173,19 @@ onScopeDispose(() => controller.abort())
 
     <template v-else-if="order">
       <OrderDeleteDialog
-        v-if="deleteOpen && canDelete"
+        v-if="activeDialog === 'delete' && canDelete"
         :order="order"
-        @close="closeDelete"
+        @close="closeDialog"
         @reload="reloadAfterDelete"
         @deleted="finishDelete"
+      />
+      <OrderStatusDialog
+        v-if="activeDialog === 'status'"
+        :key="order.id"
+        :order="order"
+        @close="closeDialog"
+        @refreshed="applyOrderSnapshot"
+        @changed="finishStatusChange"
       />
       <div class="detail-overview">
         <VCard

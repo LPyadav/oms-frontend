@@ -1,6 +1,5 @@
-import { ORDER_STATUS } from '../constants/orders'
+import { ORDER_STATUS, ORDER_WORKFLOW } from '../constants/orders'
 
-const workflow = Object.freeze(['pending', 'confirmed', 'processing', 'ready', 'completed'])
 const systemNames = { 'order.created': 'Order created', 'order.updated': 'Order updated' }
 
 export function orderTimeline(order) {
@@ -15,11 +14,8 @@ export function orderTimeline(order) {
     timestamps.set('completed', order.completed_at)
   }
 
-  const statuses = [
-    ...(reached.has('draft') ? ['draft'] : []),
-    ...workflow,
-    ...(order.status === 'cancelled' ? ['cancelled'] : []),
-  ]
+  const statuses = ORDER_WORKFLOW.filter((status) => status !== 'draft' || reached.has(status))
+  if (order.status === 'cancelled') statuses.push('cancelled')
   return [
     { key: 'created', title: 'Created', at: order.created_at, reached: true },
     ...statuses.map((key) => {
