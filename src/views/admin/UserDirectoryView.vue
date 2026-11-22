@@ -6,9 +6,9 @@ import { VAvatar } from 'vuetify/components/VAvatar'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
-import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { VTable } from 'vuetify/components/VTable'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import DirectoryState from '../../components/directory/DirectoryState.vue'
 import { ADMIN_USERS_PATH } from '../../api/adminUsers'
 import AdminUserAccountDialog from '../../components/admin/AdminUserAccountDialog.vue'
 import AdminUserPermissionsDialog from '../../components/admin/AdminUserPermissionsDialog.vue'
@@ -242,39 +242,53 @@ onScopeDispose(() => requests.abort())
         </span>
       </div>
 
-      <div v-if="loading" class="directory-state" role="status">
-        <VProgressLinear color="primary" indeterminate aria-hidden="true" />
-        <p>Loading users…</p>
-      </div>
+      <DirectoryState
+        v-if="loading"
+        class="directory-state"
+        kind="loading"
+        message="Loading users…"
+      />
 
-      <div v-else-if="error" class="directory-state">
-        <VAlert type="error" variant="tonal" :icon="false" role="alert">
-          {{ accessDenied ? 'You do not have permission to view users.' : 'Unable to load users.' }}
-        </VAlert>
-        <VBtn
-          v-if="!accessDenied"
-          class="text-none"
-          color="primary"
-          variant="outlined"
-          @click="changePage(requestedPage)"
-        >
-          Try again
-        </VBtn>
-      </div>
-
-      <template v-else-if="directory">
-        <div v-if="!directory.users.length" class="directory-state">
-          <p>{{ directory.total === 0 ? 'No users found.' : 'No users on this page.' }}</p>
+      <DirectoryState
+        v-else-if="error"
+        class="directory-state"
+        kind="error"
+        :message="
+          accessDenied ? 'You do not have permission to view users.' : 'Unable to load users.'
+        "
+      >
+        <template #actions>
           <VBtn
-            v-if="directory.currentPage > directory.lastPage"
+            v-if="!accessDenied"
             class="text-none"
             color="primary"
             variant="outlined"
-            @click="changePage(directory.lastPage)"
+            @click="changePage(requestedPage)"
           >
-            Go to the last page
+            Try again
           </VBtn>
-        </div>
+        </template>
+      </DirectoryState>
+
+      <template v-else-if="directory">
+        <DirectoryState
+          v-if="!directory.users.length"
+          class="directory-state"
+          kind="empty"
+          :message="directory.total === 0 ? 'No users found.' : 'No users on this page.'"
+        >
+          <template #actions>
+            <VBtn
+              v-if="directory.currentPage > directory.lastPage"
+              class="text-none"
+              color="primary"
+              variant="outlined"
+              @click="changePage(directory.lastPage)"
+            >
+              Go to the last page
+            </VBtn>
+          </template>
+        </DirectoryState>
 
         <VTable v-else class="directory-table" aria-label="OMS user accounts" density="compact">
           <colgroup>

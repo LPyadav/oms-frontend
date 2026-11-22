@@ -1,15 +1,13 @@
 <script setup>
 import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, useTemplateRef } from 'vue'
-import { VAlert } from 'vuetify/components/VAlert'
 import { VAvatar } from 'vuetify/components/VAvatar'
 import { VBtn } from 'vuetify/components/VBtn'
-import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
-import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { VSelect } from 'vuetify/components/VSelect'
 import { VTable } from 'vuetify/components/VTable'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import CatalogDirectoryShell from '../../components/directory/CatalogDirectoryShell.vue'
 import CustomerProfileDialog from '../../components/customers/CustomerProfileDialog.vue'
 import { useCustomerDirectory } from '../../composables/useCustomerDirectory'
 import { useAuthStore } from '../../stores/auth'
@@ -36,20 +34,6 @@ const filtersApplied = computed(() => !!query.value.search || query.value.isActi
 const filtersPresent = computed(
   () => filtersApplied.value || !!search.value.trim() || status.value !== 'all',
 )
-const pageRange = computed(() => {
-  if (!result.value?.customers.length) return ''
-
-  const { customers, currentPage, perPage, total } = result.value
-  const start = (currentPage - 1) * perPage + 1
-  const end = start + customers.length - 1
-  const range = start === end ? String(start) : start + '–' + end
-  return range + ' of ' + total + (total === 1 ? ' customer' : ' customers')
-})
-const errorMessage = computed(() => {
-  if (error.value?.status === 403) return 'You do not have permission to view customers.'
-  if (error.value?.status === 429) return 'Too many requests. Try again shortly.'
-  return 'Unable to load customers. Try again.'
-})
 
 function applyFilters() {
   return load({
@@ -118,155 +102,105 @@ onScopeDispose(() => requests.abort())
       </VBtn>
     </header>
 
-    <VCard color="surface" variant="flat" border class="customers-card">
-      <form class="customer-filters" aria-label="Customer filters" @submit.prevent="applyFilters">
-        <VTextField
-          v-model="search"
-          label="Search customers"
-          placeholder="Name, email, or phone"
-          :prepend-inner-icon="aliases.search"
-          type="search"
-          variant="outlined"
-          density="comfortable"
-          maxlength="255"
-          hide-details
-        />
-        <VSelect
-          v-model="status"
-          label="Status"
-          :items="statusOptions"
-          :menu-icon="aliases.dropdown"
-          variant="outlined"
-          density="comfortable"
-          hide-details
-        />
-        <div class="customer-filter-actions">
-          <VBtn type="submit" color="primary" variant="flat" class="text-none">Apply filters</VBtn>
-          <VBtn
-            v-if="filtersPresent"
-            type="button"
-            variant="text"
-            class="text-none"
-            @click="clearFilters"
-          >
-            Clear
-          </VBtn>
-        </div>
-      </form>
-
-      <div v-if="loading" class="customers-state" role="status">
-        <VProgressLinear color="primary" indeterminate aria-hidden="true" />
-        <p>Loading customers…</p>
-      </div>
-      <div v-else-if="error" class="customers-state">
-        <VAlert type="error" variant="tonal" :icon="false" role="alert">{{ errorMessage }}</VAlert>
-        <VBtn
-          v-if="error.status === 403"
-          :to="{ name: 'workspace' }"
-          variant="outlined"
-          class="text-none"
-        >
-          Back to workspace
-        </VBtn>
-        <VBtn v-else type="button" variant="outlined" class="text-none" @click="load()">
-          Try again
-        </VBtn>
-      </div>
-      <template v-else-if="result">
-        <div v-if="result.currentPage > result.lastPage" class="customers-state">
-          <p>This customer page is no longer available.</p>
-          <VBtn
-            type="button"
+    <CatalogDirectoryShell
+      item-label="Customer"
+      :loading="loading"
+      :error="error"
+      :page="result"
+      :item-count="result?.customers.length ?? 0"
+      :filters-applied="filtersApplied"
+      @retry="load()"
+      @page-change="changePage"
+    >
+      <template #filters>
+        <form class="customer-filters" aria-label="Customer filters" @submit.prevent="applyFilters">
+          <VTextField
+            v-model="search"
+            label="Search customers"
+            placeholder="Name, email, or phone"
+            :prepend-inner-icon="aliases.search"
+            type="search"
             variant="outlined"
-            class="text-none"
-            @click="changePage(result.lastPage)"
-          >
-            Go to last page
-          </VBtn>
-        </div>
-        <div v-else-if="!result.customers.length" class="customers-state" role="status">
-          <p>{{ filtersApplied ? 'No customers match these filters.' : 'No customers yet.' }}</p>
-        </div>
-        <template v-else>
-          <VTable class="customers-table" density="comfortable">
-            <caption class="d-sr-only">
-              Customer directory
-            </caption>
-            <thead role="rowgroup">
-              <tr role="row">
-                <th scope="col" role="columnheader">Customer</th>
-                <th scope="col" role="columnheader">Phone</th>
-                <th scope="col" role="columnheader">Status</th>
-              </tr>
-            </thead>
-            <tbody role="rowgroup">
-              <tr v-for="customer in result.customers" :key="customer.id" role="row">
-                <th scope="row" role="rowheader">
-                  <div class="customer-identity">
-                    <VAvatar size="34" color="primary" variant="tonal" aria-hidden="true">
-                      {{ getAccountInitials(customer.name) }}
-                    </VAvatar>
-                    <div class="customer-name">
-                      <button
-                        type="button"
-                        class="customer-name-button"
-                        :aria-label="`View ${customer.name}`"
-                        @click="openCustomer(customer.id, $event)"
-                      >
-                        {{ customer.name }}
-                      </button>
-                      <span class="customer-detail">{{ customer.email || 'No email' }}</span>
-                    </div>
-                  </div>
-                </th>
-                <td role="cell">
-                  <span class="customer-cell-label" aria-hidden="true">Phone</span>
-                  {{ customer.phone || '—' }}
-                </td>
-                <td role="cell">
-                  <span class="customer-cell-label" aria-hidden="true">Status</span>
-                  <VChip
-                    :color="customer.is_active ? 'primary' : undefined"
-                    size="small"
-                    variant="tonal"
-                    label
-                  >
-                    {{ customer.is_active ? 'Active' : 'Inactive' }}
-                  </VChip>
-                </td>
-              </tr>
-            </tbody>
-          </VTable>
-
-          <footer class="customers-footer">
-            <span class="customer-detail" aria-live="polite">{{ pageRange }}</span>
-            <nav v-if="result.lastPage > 1" class="customer-pages" aria-label="Customer pages">
-              <VBtn
-                aria-label="Previous page"
-                :icon="aliases.prev"
-                size="small"
-                rounded="lg"
-                variant="outlined"
-                :disabled="result.currentPage <= 1"
-                @click="changePage(result.currentPage - 1)"
-              />
-              <span class="customer-detail"
-                >Page {{ result.currentPage }} of {{ result.lastPage }}</span
-              >
-              <VBtn
-                aria-label="Next page"
-                :icon="aliases.next"
-                size="small"
-                rounded="lg"
-                variant="outlined"
-                :disabled="result.currentPage >= result.lastPage"
-                @click="changePage(result.currentPage + 1)"
-              />
-            </nav>
-          </footer>
-        </template>
+            density="comfortable"
+            maxlength="255"
+            hide-details
+          />
+          <VSelect
+            v-model="status"
+            label="Status"
+            :items="statusOptions"
+            :menu-icon="aliases.dropdown"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          />
+          <div class="customer-filter-actions">
+            <VBtn type="submit" color="primary" variant="flat" class="text-none"
+              >Apply filters</VBtn
+            >
+            <VBtn
+              v-if="filtersPresent"
+              type="button"
+              variant="text"
+              class="text-none"
+              @click="clearFilters"
+            >
+              Clear
+            </VBtn>
+          </div>
+        </form>
       </template>
-    </VCard>
+
+      <VTable class="customers-table" density="comfortable">
+        <caption class="d-sr-only">
+          Customer directory
+        </caption>
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">Customer</th>
+            <th scope="col" role="columnheader">Phone</th>
+            <th scope="col" role="columnheader">Status</th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          <tr v-for="customer in result.customers" :key="customer.id" role="row">
+            <th scope="row" role="rowheader">
+              <div class="customer-identity">
+                <VAvatar size="34" color="primary" variant="tonal" aria-hidden="true">
+                  {{ getAccountInitials(customer.name) }}
+                </VAvatar>
+                <div class="customer-name">
+                  <button
+                    type="button"
+                    class="customer-name-button"
+                    :aria-label="`View ${customer.name}`"
+                    @click="openCustomer(customer.id, $event)"
+                  >
+                    {{ customer.name }}
+                  </button>
+                  <span class="customer-detail">{{ customer.email || 'No email' }}</span>
+                </div>
+              </div>
+            </th>
+            <td role="cell">
+              <span class="customer-cell-label" aria-hidden="true">Phone</span>
+              {{ customer.phone || '—' }}
+            </td>
+            <td role="cell">
+              <span class="customer-cell-label" aria-hidden="true">Status</span>
+              <VChip
+                :color="customer.is_active ? 'primary' : undefined"
+                size="small"
+                variant="tonal"
+                label
+              >
+                {{ customer.is_active ? 'Active' : 'Inactive' }}
+              </VChip>
+            </td>
+          </tr>
+        </tbody>
+      </VTable>
+    </CatalogDirectoryShell>
 
     <CustomerProfileDialog
       v-if="dialog"
@@ -302,12 +236,6 @@ onScopeDispose(() => requests.abort())
   outline: none;
 }
 
-.customers-card {
-  border-color: rgba(var(--v-theme-on-surface), 0.14);
-  border-radius: 12px;
-  box-shadow: 0 2px 7px rgba(var(--v-theme-on-surface), 0.045);
-}
-
 .customer-filters {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(145px, 0.36fr) auto;
@@ -317,29 +245,14 @@ onScopeDispose(() => requests.abort())
 }
 
 .customer-filter-actions,
-.customer-pages,
-.customers-footer,
 .customer-identity {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.customer-filter-actions,
-.customers-footer {
+.customer-filter-actions {
   flex-wrap: wrap;
-}
-
-.customers-state {
-  display: grid;
-  gap: 12px;
-  justify-items: start;
-  padding: 16px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-}
-
-.customers-state p {
-  margin: 0;
 }
 
 .customers-table thead {
@@ -378,12 +291,6 @@ onScopeDispose(() => requests.abort())
 .customer-detail {
   color: rgba(var(--v-theme-on-surface), 0.77);
   font-size: 0.8125rem;
-}
-
-.customers-footer {
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .customer-cell-label {
