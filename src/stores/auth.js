@@ -52,15 +52,18 @@ export const useAuthStore = defineStore('auth', () => {
   const user = shallowRef(null)
   const error = shallowRef(null)
   const isAuthenticated = computed(() => status.value === AUTH_STATUS.AUTHENTICATED)
-  const canManageUsers = computed(
+  const isAdmin = computed(
     () =>
       isAuthenticated.value &&
-      user.value?.roles.some((role) => role.toLowerCase() === 'admin') === true &&
-      user.value.permissions?.includes('users.manage') === true,
+      user.value?.roles.some((role) => role.toLowerCase() === 'admin') === true,
   )
-  const canAssignUserRoles = computed(
-    () => canManageUsers.value && user.value?.permissions.includes('roles.manage') === true,
+  const canManageUsers = computed(
+    () => isAdmin.value && user.value.permissions?.includes('users.manage') === true,
   )
+  const canManageRoles = computed(
+    () => isAdmin.value && user.value.permissions?.includes('roles.manage') === true,
+  )
+  const canAssignUserRoles = computed(() => canManageUsers.value && canManageRoles.value)
 
   let session = readSession()
   let expiryTimer
@@ -252,6 +255,7 @@ export const useAuthStore = defineStore('auth', () => {
     error,
     isAuthenticated,
     canManageUsers,
+    canManageRoles,
     canAssignUserRoles,
     initialize,
     login,

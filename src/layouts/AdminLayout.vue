@@ -113,6 +113,29 @@ function focusMain() {
             </svg>
           </template>
         </VListItem>
+        <VListItem
+          v-if="auth.canManageRoles"
+          :to="{ name: 'admin-roles' }"
+          title="Roles &amp; permissions"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        >
+          <template #prepend>
+            <svg
+              class="admin-nav-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.7"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M12 22C7 20 4 16 4 11V6l8-4 8 4v5c0 5-3 9-8 11Z" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+          </template>
+        </VListItem>
       </VList>
 
       <template #append>

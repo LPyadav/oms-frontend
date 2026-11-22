@@ -152,11 +152,16 @@ it('loads all catalog pages and preserves role names exactly as returned', async
   const { request, controller } = setup()
   request
     .mockResolvedValueOnce({
-      data: { roles: [{ name: 'admin' }, { name: 'Fulfillment Lead' }] },
+      data: {
+        roles: [
+          { id: 1, name: 'admin', permissions: [] },
+          { id: 2, name: 'Fulfillment Lead', permissions: [] },
+        ],
+      },
       meta: { current_page: 1, last_page: 2 },
     })
     .mockResolvedValueOnce({
-      data: { roles: [{ name: 'staff' }] },
+      data: { roles: [{ id: 3, name: 'staff', permissions: [] }] },
       meta: { current_page: 2, last_page: 2 },
     })
 

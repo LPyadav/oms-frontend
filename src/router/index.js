@@ -30,6 +30,12 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             component: () => import('../views/admin/UserDirectoryView.vue'),
             meta: { adminTitle: 'Users', requiresUserManagement: true },
           },
+          {
+            path: 'roles',
+            name: 'admin-roles',
+            component: () => import('../views/admin/RolePermissionsView.vue'),
+            meta: { adminTitle: 'Roles & permissions', requiresRoleManagement: true },
+          },
         ],
       },
       {
@@ -55,7 +61,10 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     if (auth.status !== AUTH_STATUS.UNAVAILABLE) await auth.initialize()
 
     if (requiresAuth && !auth.isAuthenticated) return { name: 'login', replace: true }
-    if (to.meta.requiresUserManagement && !auth.canManageUsers) {
+    if (
+      (to.meta.requiresUserManagement && !auth.canManageUsers) ||
+      (to.meta.requiresRoleManagement && !auth.canManageRoles)
+    ) {
       return { name: 'access-denied', replace: true }
     }
     if (guestOnly && auth.isAuthenticated) {

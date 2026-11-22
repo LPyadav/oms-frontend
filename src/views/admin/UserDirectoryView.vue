@@ -9,8 +9,10 @@ import { VChip } from 'vuetify/components/VChip'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { VTable } from 'vuetify/components/VTable'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import { ADMIN_USERS_PATH } from '../../api/adminUsers'
 import AdminUserAccountDialog from '../../components/admin/AdminUserAccountDialog.vue'
-import { ADMIN_USERS_PATH, useUserAccountActions } from '../../composables/useUserAccountActions'
+import AdminUserPermissionsDialog from '../../components/admin/AdminUserPermissionsDialog.vue'
+import { useUserAccountActions } from '../../composables/useUserAccountActions'
 import { useAuthStore } from '../../stores/auth'
 import { getAccountInitials } from '../../utils/accountInitials'
 
@@ -118,6 +120,40 @@ function openRoleAssignment() {
   }
 }
 
+function openPermissionEditor() {
+  if (auth.canAssignUserRoles && action.value?.account) {
+    openAction('permissions', action.value.account)
+  }
+}
+
+async function refreshOwnAccess(successMessage) {
+  refreshingAccess.value = true
+  notice.value = successMessage + ' Checking your access…'
+  try {
+    const profile = await auth.refreshCurrentUser()
+    if (!profile || requests.signal.aborted) return false
+
+    if (!auth.canManageUsers) {
+      await router.replace({ name: 'workspace' })
+      return false
+    }
+
+    return true
+  } finally {
+    refreshingAccess.value = false
+  }
+}
+
+async function finishPermissionEdit(userId) {
+  if (!closeAction()) return
+
+  const successMessage = 'Direct permissions saved.'
+  if (userId === auth.user?.id && !(await refreshOwnAccess(successMessage))) return
+
+  notice.value = successMessage
+  await restoreActionFocus()
+}
+
 async function submitAccountAction(body) {
   if (action.value?.mode === 'roles' && !auth.canAssignUserRoles) return
 
@@ -131,21 +167,7 @@ async function submitAccountAction(body) {
     return
   }
 
-  if (mode === 'roles' && isSelf) {
-    refreshingAccess.value = true
-    notice.value = 'Roles updated. Checking your access…'
-    try {
-      const profile = await auth.refreshCurrentUser()
-      if (!profile || requests.signal.aborted) return
-
-      if (!auth.canManageUsers) {
-        await router.replace({ name: 'workspace' })
-        return
-      }
-    } finally {
-      refreshingAccess.value = false
-    }
-  }
+  if (mode === 'roles' && isSelf && !(await refreshOwnAccess('Roles updated.'))) return
 
   if (mode === 'create') {
     notice.value = 'User created.'
@@ -367,11 +389,18 @@ onScopeDispose(() => requests.abort())
       </template>
     </VCard>
 
+    <AdminUserPermissionsDialog
+      v-if="action?.mode === 'permissions' && auth.canAssignUserRoles"
+      :key="action.account.id"
+      :account="action.account"
+      @close="dismissAccountAction"
+      @saved="finishPermissionEdit"
+    />
     <AdminUserAccountDialog
-      v-if="action"
+      v-else-if="action && action.mode !== 'permissions'"
       :mode="action.mode"
       :account="action.account"
-      :can-assign-roles="auth.canAssignUserRoles"
+      :can-manage-access="auth.canAssignUserRoles"
       :is-self="action.account?.id === auth.user?.id"
       :saving="saving"
       :message="message"
@@ -379,12 +408,13 @@ onScopeDispose(() => requests.abort())
       @close="dismissAccountAction"
       @change-status="openAction($event, action.account)"
       @assign-roles="openRoleAssignment"
+      @edit-permissions="openPermissionEditor"
       @submit="submitAccountAction"
       @clear-field-error="clearFieldError"
     />
   </section>
   <section v-else-if="refreshingAccess" class="user-directory" role="status">
-    Roles updated. Opening your workspace…
+    Opening your workspace…
   </section>
 </template>
 

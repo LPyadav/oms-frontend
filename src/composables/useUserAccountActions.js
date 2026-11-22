@@ -1,7 +1,6 @@
 import { ref, shallowRef } from 'vue'
+import { ADMIN_USERS_PATH } from '../api/adminUsers'
 import { ApiError } from '../api/client'
-
-export const ADMIN_USERS_PATH = '/api/admin/users'
 
 export function getUserAccountBody(mode, draft, account) {
   const profile = { name: draft.name.trim(), email: draft.email.trim() }

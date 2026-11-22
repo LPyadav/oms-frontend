@@ -15,13 +15,20 @@ import { useAuthStore } from '../../stores/auth'
 const props = defineProps({
   mode: { type: String, required: true },
   account: { type: Object, default: null },
-  canAssignRoles: Boolean,
+  canManageAccess: Boolean,
   isSelf: Boolean,
   saving: Boolean,
   message: { type: String, default: '' },
   fieldErrors: { type: Object, required: true },
 })
-const emit = defineEmits(['close', 'change-status', 'assign-roles', 'submit', 'clear-field-error'])
+const emit = defineEmits([
+  'close',
+  'change-status',
+  'assign-roles',
+  'edit-permissions',
+  'submit',
+  'clear-field-error',
+])
 const auth = useAuthStore()
 const form = useTemplateRef('form')
 const cancelButton = useTemplateRef('cancelButton')
@@ -69,7 +76,7 @@ const submitDisabled = computed(
   () =>
     props.saving ||
     unchanged.value ||
-    (assigningRoles.value && (!props.canAssignRoles || !roleNames.value || !rolesChanged.value)),
+    (assigningRoles.value && (!props.canManageAccess || !roleNames.value || !rolesChanged.value)),
 )
 
 async function loadRoles() {
@@ -202,7 +209,7 @@ watch(
             <fieldset
               v-else-if="roleNames?.length"
               class="role-options"
-              :disabled="saving || !canAssignRoles"
+              :disabled="saving || !canManageAccess"
               :aria-describedby="fieldErrors.roles?.length ? 'user-role-errors' : undefined"
             >
               <legend>Assigned roles</legend>
@@ -215,7 +222,7 @@ watch(
                   :value="role"
                   :true-icon="aliases.checkboxOn"
                   :false-icon="aliases.checkboxOff"
-                  :disabled="saving || !canAssignRoles"
+                  :disabled="saving || !canManageAccess"
                   color="primary"
                   density="compact"
                   hide-details
@@ -283,7 +290,7 @@ watch(
             />
             <div v-if="!creating" class="account-secondary-actions">
               <VBtn
-                v-if="canAssignRoles"
+                v-if="canManageAccess"
                 type="button"
                 variant="outlined"
                 class="text-none"
@@ -291,6 +298,16 @@ watch(
                 @click="emit('assign-roles')"
               >
                 Assign roles
+              </VBtn>
+              <VBtn
+                v-if="canManageAccess"
+                type="button"
+                variant="outlined"
+                class="text-none"
+                :disabled="saving"
+                @click="emit('edit-permissions')"
+              >
+                Edit permissions
               </VBtn>
               <VBtn
                 type="button"

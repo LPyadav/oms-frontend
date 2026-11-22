@@ -7,6 +7,7 @@ vi.mock('../layouts/AdminLayout.vue', () => ({ default: {} }))
 vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
 vi.mock('../views/AccessDeniedView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
+vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -70,6 +71,22 @@ it.each(['/admin', '/admin/users'])(
       '/admin',
       '/admin/users',
     ])
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it.each([
+  { roles: ['admin'], permissions: ['roles.manage'], destination: 'admin-roles' },
+  { roles: ['admin'], permissions: ['users.manage'], destination: 'access-denied' },
+  { roles: ['manager'], permissions: ['roles.manage'], destination: 'access-denied' },
+])(
+  'checks the independent role-management grant for $roles with $permissions',
+  async ({ roles, permissions, destination }) => {
+    rememberAccount(roles, permissions)
+
+    await router.push('/admin/roles')
+
+    expect(router.currentRoute.value.name).toBe(destination)
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
   },
 )
