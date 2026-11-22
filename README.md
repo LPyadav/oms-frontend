@@ -1,6 +1,6 @@
 # OMS Frontend
 
-Vue single-page application for the Order Management System. The Laravel API lives in the separate `oms-backend` repository. The app opens the workspace for signed-in users and directs guests to sign-in. The API connection diagnostic is available at `/dev/health`.
+Vue single-page application for the Order Management System. The Laravel API lives in the separate `oms-backend` repository. The app directs guests to sign-in. Signed-in users land in the Admin Users directory if they have user-management access, or in Workspace otherwise. The API connection diagnostic is available at `/dev/health`.
 
 ## Prerequisites
 
@@ -69,12 +69,12 @@ Epic 01 adds the OMS sign-in flow, bearer-token session management, and a protec
 
 ### Routes
 
-| Route         | Access              | Behavior                                                                                                |
-| ------------- | ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `/`           | Public              | Enters the workspace through its authentication guard.                                                  |
-| `/dev/health` | Public              | Checks API health and offers a retry when the API is unavailable.                                       |
-| `/login`      | Guests              | Shows the sign-in form. A verified session resumes a valid protected destination or opens `/workspace`. |
-| `/workspace`  | Authenticated users | Shows the verified account and provides sign-out. Guests are redirected to `/login`.                    |
+| Route         | Access              | Behavior                                                                                                    |
+| ------------- | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `/`           | Public              | Opens sign-in for guests or the default signed-in page for verified sessions.                               |
+| `/dev/health` | Public              | Checks API health and offers a retry when the API is unavailable.                                           |
+| `/login`      | Guests              | Shows the sign-in form. A verified session resumes a valid protected destination or opens its default page. |
+| `/workspace`  | Authenticated users | Shows the verified account and provides sign-out. Guests are redirected to `/login`.                        |
 
 ### Session and API behavior
 

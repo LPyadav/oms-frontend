@@ -23,6 +23,10 @@ vi.mock('vuetify/components/VApp', () => ({
 vi.mock('../views/ConnectionCheckView.vue', () => ({ default: { render: () => null } }))
 vi.mock('../views/auth/LoginView.vue', () => ({ default: { render: () => null } }))
 vi.mock('../views/WorkspaceView.vue', () => ({ default: { render: () => null } }))
+vi.mock('../layouts/AdminLayout.vue', () => ({ default: { render: () => null } }))
+vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: { render: () => null } }))
+vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: { render: () => null } }))
+vi.mock('../views/AccessDeniedView.vue', () => ({ default: { render: () => null } }))
 
 const sessionKey = 'oms.session'
 const user = { id: 1, name: 'Review User', email: 'review@example.test' }
@@ -41,8 +45,8 @@ function rememberSession() {
   )
 }
 
-function profileResponse() {
-  return Response.json({ success: true, data: { user } })
+function profileResponse(profile = user) {
+  return Response.json({ success: true, data: { user: profile } })
 }
 
 beforeEach(() => {
@@ -63,13 +67,13 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-it.each(['/', '/workspace?view=open#details'])(
+it.each(['/', '/workspace?view=open#details', '/admin/roles?filter=staff#permissions'])(
   'redirects a guest opening %s to login',
   async (path) => {
     await router.push(path)
 
     expect(router.currentRoute.value.name).toBe('login')
-    expect(router.currentRoute.value.query.redirect).toBe(path === '/' ? '/workspace' : path)
+    expect(router.currentRoute.value.query.redirect).toBe(path === '/' ? undefined : path)
     expect(fetchMock).not.toHaveBeenCalled()
   },
 )
@@ -86,6 +90,51 @@ it.each(['/', '/workspace', '/login'])(
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
   },
 )
+
+it.each([
+  { role: 'admin', permissions: ['users.manage'], destination: 'admin-users' },
+  { role: 'admin', permissions: [], destination: 'workspace' },
+  { role: 'manager', permissions: ['users.manage'], destination: 'workspace' },
+  { role: 'staff', permissions: [], destination: 'workspace' },
+])(
+  'lands a verified $role with $permissions at $destination from login',
+  async ({ role, permissions, destination }) => {
+    rememberSession()
+    fetchMock.mockResolvedValueOnce(profileResponse({ ...user, roles: [role], permissions }))
+
+    await router.push('/login')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it('opens the user directory for an authorized admin at the root', async () => {
+  rememberSession()
+  fetchMock.mockResolvedValueOnce(
+    profileResponse({ ...user, roles: ['admin'], permissions: ['users.manage'] }),
+  )
+
+  await router.push('/')
+
+  expect(router.currentRoute.value.name).toBe('admin-users')
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})
+
+it.each([
+  ['admin', '/admin/roles?filter=staff#permissions'],
+  ['manager', '/access-denied'],
+])('checks access before resuming a roles deep link for %s', async (role, destination) => {
+  rememberSession()
+  fetchMock.mockResolvedValueOnce(
+    profileResponse({ ...user, roles: [role], permissions: ['roles.manage'] }),
+  )
+
+  await router.push({ name: 'login', query: { redirect: '/admin/roles?filter=staff#permissions' } })
+
+  expect(router.currentRoute.value.fullPath).toBe(destination)
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})
 
 it.each([
   ['the timer runs', () => vi.advanceTimersByTimeAsync(60_000)],
@@ -165,7 +214,9 @@ it('opens the public connection check without restoring a session', async () => 
 it('uses a valid protected destination when a verified session opens login', async () => {
   const intended = '/workspace?view=open#details'
   rememberSession()
-  fetchMock.mockResolvedValueOnce(profileResponse())
+  fetchMock.mockResolvedValueOnce(
+    profileResponse({ ...user, roles: ['admin'], permissions: ['users.manage'] }),
+  )
 
   await router.push({ name: 'login', query: { redirect: intended } })
 

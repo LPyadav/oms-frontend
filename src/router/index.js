@@ -9,7 +9,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     routes: [
       {
         path: '/',
-        redirect: { name: 'workspace' },
+        redirect: { name: 'login' },
       },
       {
         path: '/dev/health',
@@ -21,6 +21,32 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         name: 'login',
         component: () => import('../views/auth/LoginView.vue'),
         meta: { guestOnly: true },
+      },
+      {
+        path: '/admin',
+        component: () => import('../layouts/AdminLayout.vue'),
+        redirect: { name: 'admin-users' },
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: 'users',
+            name: 'admin-users',
+            component: () => import('../views/admin/UserDirectoryView.vue'),
+            meta: { adminTitle: 'Users', requiresUserManagement: true },
+          },
+          {
+            path: 'roles',
+            name: 'admin-roles',
+            component: () => import('../views/admin/RolePermissionsView.vue'),
+            meta: { adminTitle: 'Roles & permissions', requiresRoleManagement: true },
+          },
+        ],
+      },
+      {
+        path: '/access-denied',
+        name: 'access-denied',
+        component: () => import('../views/AccessDeniedView.vue'),
+        meta: { requiresAuth: true },
       },
       {
         path: '/workspace',
@@ -39,8 +65,15 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
     if (auth.status !== AUTH_STATUS.UNAVAILABLE) await auth.initialize()
 
     if (requiresAuth && !auth.isAuthenticated) return loginLocation(to)
-    if (guestOnly && auth.isAuthenticated)
-      return { ...signedInLocation(router, to.query.redirect), replace: true }
+    if (
+      (to.meta.requiresUserManagement && !auth.canManageUsers) ||
+      (to.meta.requiresRoleManagement && !auth.canManageRoles)
+    ) {
+      return { name: 'access-denied', replace: true }
+    }
+    if (guestOnly && auth.isAuthenticated) {
+      return { ...signedInLocation(router, to.query.redirect, auth.canManageUsers), replace: true }
+    }
   })
 
   router.beforeResolve(async (to) => {

@@ -7,9 +7,11 @@ import { VTextField } from 'vuetify/components/VTextField'
 import { useSignInForm } from '../../composables/useSignInForm'
 import AuthLayout from '../../layouts/AuthLayout.vue'
 import { signedInLocation } from '../../router/authRedirect'
+import { useAuthStore } from '../../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const heading = useTemplateRef('heading')
 const {
   checkingSession,
@@ -27,7 +29,9 @@ const {
 } = useSignInForm()
 
 watch(isAuthenticated, (authenticated) => {
-  if (authenticated) void router.replace(signedInLocation(router, route.query.redirect))
+  if (authenticated) {
+    void router.replace(signedInLocation(router, route.query.redirect, auth.canManageUsers))
+  }
 })
 
 async function retrySession() {
@@ -50,7 +54,7 @@ async function retrySession() {
       </VAlert>
 
       <p v-if="checkingSession || isAuthenticated" role="status">
-        {{ isAuthenticated ? 'Opening your workspace…' : 'Checking your session…' }}
+        {{ isAuthenticated ? 'Opening OMS…' : 'Checking your session…' }}
       </p>
 
       <template v-else-if="sessionUnavailable">

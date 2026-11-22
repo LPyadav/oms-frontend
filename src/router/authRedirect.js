@@ -1,3 +1,5 @@
+import { getSignedInRouteName } from './signedInRoute'
+
 export function loginLocation(route) {
   return {
     name: 'login',
@@ -22,7 +24,7 @@ function isInternalPath(value) {
   }
 }
 
-export function signedInLocation(router, redirect) {
+export function signedInLocation(router, redirect, canManageUsers) {
   if (isInternalPath(redirect)) {
     const target = router.resolve(redirect)
     const record = target.matched.at(-1)
@@ -36,5 +38,5 @@ export function signedInLocation(router, redirect) {
     }
   }
 
-  return { name: 'workspace' }
+  return { name: getSignedInRouteName(canManageUsers) }
 }
