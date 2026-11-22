@@ -31,6 +31,7 @@ export const useAuthStore = defineStore('auth', () => {
   const status = ref(AUTH_STATUS.IDLE)
   const user = shallowRef(null)
   const error = shallowRef(null)
+  const signedOutExplicitly = ref(false)
   const isAuthenticated = computed(() => status.value === AUTH_STATUS.AUTHENTICATED)
   const canManageUsers = computed(
     () =>
@@ -60,7 +61,10 @@ export const useAuthStore = defineStore('auth', () => {
   function saveSession(next) {
     session = next
     clearTimeout(expiryTimer)
-    if (next) scheduleExpiry(next)
+    if (next) {
+      signedOutExplicitly.value = false
+      scheduleExpiry(next)
+    }
 
     try {
       if (next) globalThis.sessionStorage.setItem(storageKey, JSON.stringify(next))
@@ -71,6 +75,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearSession() {
+    if (session !== null) signedOutExplicitly.value = logoutRequest?.session === session
     saveSession(null)
     user.value = null
     error.value = null
@@ -228,6 +233,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     error,
     isAuthenticated,
+    signedOutExplicitly,
     canManageUsers,
     initialize,
     login,

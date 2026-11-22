@@ -1,18 +1,28 @@
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { createApp } from 'vue'
 import { createMemoryHistory } from 'vue-router'
+import App from '../App.vue'
 import { createAppRouter } from '../router'
 import { useAuthStore } from '../stores/auth'
 
-vi.mock('../views/ConnectionCheckView.vue', () => ({ default: {} }))
-vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
-vi.mock('../views/WorkspaceView.vue', () => ({ default: {} }))
+vi.mock('vuetify/components/VApp', () => ({
+  VApp: {
+    setup(_props, { slots }) {
+      return () => slots.default?.()
+    },
+  },
+}))
+vi.mock('../views/ConnectionCheckView.vue', () => ({ default: { render: () => null } }))
+vi.mock('../views/auth/LoginView.vue', () => ({ default: { render: () => null } }))
+vi.mock('../views/WorkspaceView.vue', () => ({ default: { render: () => null } }))
 
 const sessionKey = 'oms.session'
 const user = { id: 1, name: 'Review User', email: 'review@example.test' }
 let pinia
 let router
 let fetchMock
+let app
 
 function rememberSession() {
   sessionStorage.setItem(
@@ -38,28 +48,37 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  app?.unmount()
+  app = undefined
   disposePinia(pinia)
   vi.useRealTimers()
   sessionStorage.clear()
   vi.unstubAllGlobals()
 })
 
-it('redirects a guest from the workspace to login', async () => {
-  await router.push('/workspace')
+it.each(['/', '/workspace?view=open#details'])(
+  'redirects a guest opening %s to login',
+  async (path) => {
+    await router.push(path)
 
-  expect(router.currentRoute.value.name).toBe('login')
-  expect(fetchMock).not.toHaveBeenCalled()
-})
+    expect(router.currentRoute.value.name).toBe('login')
+    expect(router.currentRoute.value.query.redirect).toBe(path === '/' ? '/workspace' : path)
+    expect(fetchMock).not.toHaveBeenCalled()
+  },
+)
 
-it.each(['/workspace', '/login'])('restores a verified session before opening %s', async (path) => {
-  rememberSession()
-  fetchMock.mockResolvedValueOnce(profileResponse())
+it.each(['/', '/workspace', '/login'])(
+  'restores a verified session before opening %s',
+  async (path) => {
+    rememberSession()
+    fetchMock.mockResolvedValueOnce(profileResponse())
 
-  await router.push(path)
+    await router.push(path)
 
-  expect(router.currentRoute.value.name).toBe('workspace')
-  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
-})
+    expect(router.currentRoute.value.name).toBe('workspace')
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
 
 it.each([
   ['the timer runs', () => vi.advanceTimersByTimeAsync(60_000)],
@@ -68,7 +87,7 @@ it.each([
   'redirects to login when the session expires during workspace loading and %s',
   async (_, expireSession) => {
     vi.useFakeTimers()
-    await router.push('/')
+    await router.push('/dev/health')
     rememberSession()
     fetchMock.mockResolvedValueOnce(profileResponse())
 
@@ -85,13 +104,15 @@ it.each([
       },
     })
 
-    const navigation = router.push('/workspace')
+    const intended = '/workspace?view=open#details'
+    const navigation = router.push(intended)
     await componentRequested.promise
     await expireSession()
     componentReady.resolve({ render: () => null })
     await navigation
 
     expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe(intended)
     expect(sessionStorage.getItem(sessionKey)).toBeNull()
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
   },
@@ -128,8 +149,91 @@ it('clears a rejected saved session and redirects to login', async () => {
 it('opens the public connection check without restoring a session', async () => {
   rememberSession()
 
-  await router.push('/')
+  await router.push('/dev/health')
 
   expect(router.currentRoute.value.name).toBe('connection-check')
   expect(fetchMock).not.toHaveBeenCalled()
 })
+
+it('uses a valid protected destination when a verified session opens login', async () => {
+  const intended = '/workspace?view=open#details'
+  rememberSession()
+  fetchMock.mockResolvedValueOnce(profileResponse())
+
+  await router.push({ name: 'login', query: { redirect: intended } })
+
+  expect(router.currentRoute.value.fullPath).toBe(intended)
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})
+
+it('runs the destination guard after resolving the return path', async () => {
+  const requireAccess = vi.fn(() => ({ name: 'workspace' }))
+  router.addRoute({
+    path: '/restricted/:section',
+    name: 'restricted',
+    meta: { requiresAuth: true },
+    component: { render: () => null },
+    beforeEnter: requireAccess,
+  })
+  rememberSession()
+  fetchMock.mockResolvedValueOnce(profileResponse())
+
+  await router.push({ name: 'login', query: { redirect: '/restricted/admin#panel' } })
+
+  expect(requireAccess).toHaveBeenCalledOnce()
+  expect(router.currentRoute.value.fullPath).toBe('/workspace')
+})
+
+it.each([
+  ['external URL', 'https://outside.example.test/workspace'],
+  ['protocol-relative URL', '//outside.example.test/workspace'],
+  ['backslash URL', '/\\outside.example.test/workspace'],
+  ['encoded slash', '/%2Foutside.example.test/workspace'],
+  ['encoded backslash', '/%5Coutside.example.test/workspace'],
+  ['control character', '/workspace%00'],
+  ['malformed encoding', '/workspace%XX'],
+  ['login route', '/login'],
+  ['public diagnostic', '/dev/health'],
+  ['redirect-only root', '/'],
+  ['duplicate query values', ['/workspace?view=one', '/workspace?view=two']],
+  ['empty query', null],
+])('falls back to the workspace for an invalid %s', async (_, redirect) => {
+  rememberSession()
+  fetchMock.mockResolvedValueOnce(profileResponse())
+
+  await router.push({ name: 'login', query: { redirect } })
+
+  expect(router.currentRoute.value.fullPath).toBe('/workspace')
+})
+
+it.each(['expiry', 'unauthorized response', 'explicit sign-out'])(
+  'handles %s while a protected page is mounted',
+  async (cause) => {
+    if (cause === 'expiry') vi.useFakeTimers()
+    rememberSession()
+    fetchMock.mockResolvedValueOnce(profileResponse())
+    const intended = '/workspace?view=open#details'
+    await router.push(intended)
+    app = createApp(App).use(pinia).use(router)
+    app.mount(document.createElement('div'))
+    const auth = useAuthStore()
+    let requestFailure
+
+    if (cause === 'expiry') {
+      await vi.advanceTimersByTimeAsync(60_000)
+    } else if (cause === 'unauthorized response') {
+      fetchMock.mockResolvedValueOnce(Response.json({ success: false }, { status: 401 }))
+      requestFailure = await auth.request('/api/me').catch((error) => error)
+    } else {
+      fetchMock.mockResolvedValueOnce(Response.json({ success: true, data: null }))
+      await auth.logout()
+    }
+
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('login'))
+    expect(router.currentRoute.value.query.redirect).toBe(
+      cause === 'explicit sign-out' ? undefined : intended,
+    )
+    expect(requestFailure?.status).toBe(cause === 'unauthorized response' ? 401 : undefined)
+    expect(sessionStorage.getItem(sessionKey)).toBeNull()
+  },
+)
