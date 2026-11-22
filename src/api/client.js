@@ -1,3 +1,5 @@
+const MAX_TIMEOUT_MS = 2_147_483_647
+
 export class ApiError extends Error {
   constructor(message, { status = 0, code = null, fields = {}, retryAfter = null } = {}) {
     super(message)
@@ -9,15 +11,22 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiRequest(path, { method = 'GET', body, signal, token } = {}) {
+export async function apiRequest(
+  path,
+  { method = 'GET', body, signal, token, timeoutMs = 10_000 } = {},
+) {
   if (!path.startsWith('/api/')) {
     throw new TypeError('API requests must use a same-origin /api/ path.')
+  }
+
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_TIMEOUT_MS) {
+    throw new RangeError('timeoutMs must be an integer from 1 to 2147483647 milliseconds.')
   }
 
   const headers = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const timeout = AbortSignal.timeout(10000)
+  const timeout = AbortSignal.timeout(timeoutMs)
   const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout
   const options = {
     method,

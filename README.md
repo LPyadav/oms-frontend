@@ -91,6 +91,8 @@ The app keeps the Laravel bearer token in `sessionStorage` so a reload in the sa
 
 Protected pages show a warning five minutes before the server-issued expiry. A restored session with less time remaining shows the warning as soon as it is verified.
 
+The shared API client defaults to a 10-second timeout. For a slower call, pass a positive integer `timeoutMs` in milliseconds, for example `auth.request(path, { timeoutMs: 30_000 })`. A caller-provided `signal` can still cancel the request earlier.
+
 ### Project structure
 
 | Area                 | Files                                                                                                                                                            |
