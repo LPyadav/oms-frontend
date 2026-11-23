@@ -8,6 +8,7 @@ vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
 vi.mock('../views/AccessDeniedView.vue', () => ({ default: {} }))
 vi.mock('../views/DashboardView.vue', () => ({ default: {} }))
 vi.mock('../views/reports/OrderFulfillmentReportView.vue', () => ({ default: {} }))
+vi.mock('../views/reports/SalesTaxReportView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/AccessAuditView.vue', () => ({ default: {} }))
@@ -192,6 +193,34 @@ it.each([
     rememberAccount(roles, permissions)
 
     await router.push('/reports/orders')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it.each([
+  {
+    roles: ['manager'],
+    grants: ['reports.view', 'orders.view.any'],
+    destination: 'report-sales-tax',
+  },
+  {
+    roles: ['manager'],
+    grants: ['orders.view.any', 'products.view'],
+    destination: 'access-denied',
+  },
+  {
+    roles: ['staff'],
+    grants: ['reports.view', 'orders.view.assigned'],
+    destination: 'access-denied',
+  },
+])(
+  'gates Sales & Tax separately from catalog access for $grants',
+  async ({ roles, grants, destination }) => {
+    rememberAccount(roles, grants)
+
+    await router.push('/reports/sales-tax')
 
     expect(router.currentRoute.value.name).toBe(destination)
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])

@@ -1,0 +1,134 @@
+.report-page {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  padding-block: clamp(17px, 2.8vw, 30px) 30px;
+}
+
+.report-header h1 {
+  margin: 0;
+  font-size: clamp(1.625rem, 3.4vw, 2.125rem);
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+
+.report-header h1:focus,
+.orders-heading h2:focus {
+  outline: none;
+}
+
+.report-header p,
+.report-filters header p,
+.report-context {
+  margin: 5px 0 0;
+  color: rgba(var(--v-theme-on-surface), 0.76);
+  font-size: 0.875rem;
+}
+
+.report-filters,
+.report-totals,
+.report-state,
+.orders-heading,
+.report-footer {
+  padding: clamp(14px, 2vw, 20px);
+}
+
+.report-filters h2,
+.totals-heading h2,
+.orders-heading h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.filter-fields {
+  display: grid;
+  grid-template-columns: repeat(var(--report-filter-columns, 5), minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.filter-actions,
+.totals-heading,
+.report-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-actions {
+  margin-top: 14px;
+}
+
+.totals-heading,
+.report-footer {
+  justify-content: space-between;
+}
+
+.report-retry {
+  margin-top: 10px;
+}
+
+.totals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 10px;
+  margin: 14px 0 0;
+}
+
+.total-card {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(var(--v-theme-primary), 0.07);
+}
+
+.total-card dt,
+.total-card .currency-count {
+  color: rgba(var(--v-theme-on-surface), 0.76);
+  font-size: 0.8125rem;
+}
+
+.total-card dd {
+  margin: 4px 0 0;
+  font-size: clamp(1.1rem, 1.85vw, 1.55rem);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.total-card .currency-count {
+  font-weight: 400;
+}
+
+.report-footer {
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.76);
+  font-size: 0.875rem;
+}
+
+.report-footer :deep(nav) {
+  gap: 8px;
+}
+
+@media (max-width: 1050px) {
+  .filter-fields {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .filter-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-fields > :nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
+
+  .totals-heading {
+    align-items: start;
+    gap: 4px;
+  }
+}

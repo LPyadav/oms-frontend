@@ -120,6 +120,14 @@ function focusMain() {
           @click="mobileNavigationOpen = false"
         />
         <VListItem
+          v-if="auth.canViewReports"
+          :to="{ name: 'report-sales-tax' }"
+          :prepend-icon="aliases.file"
+          title="Sales &amp; Tax"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
           v-if="auth.canManageUsers"
           :to="{ name: 'admin-users' }"
           title="Users"

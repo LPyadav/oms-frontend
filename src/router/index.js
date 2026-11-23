@@ -49,6 +49,12 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             component: () => import('../views/reports/OrderFulfillmentReportView.vue'),
             meta: { pageTitle: 'Order Fulfillment' },
           },
+          {
+            path: 'sales-tax',
+            name: 'report-sales-tax',
+            component: () => import('../views/reports/SalesTaxReportView.vue'),
+            meta: { pageTitle: 'Sales & Tax' },
+          },
         ],
       },
       {

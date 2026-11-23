@@ -75,6 +75,16 @@ async function signOut() {
         Order Fulfillment report
       </VBtn>
       <VBtn
+        v-if="canViewReports"
+        :to="{ name: 'report-sales-tax' }"
+        class="text-none"
+        color="primary"
+        variant="outlined"
+        height="48"
+      >
+        Sales &amp; Tax report
+      </VBtn>
+      <VBtn
         v-if="canManageUsers"
         :to="{ name: 'admin-users' }"
         class="text-none"
