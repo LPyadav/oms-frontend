@@ -1,32 +1,61 @@
 <script setup>
-import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, useTemplateRef } from 'vue'
+import { computed, nextTick, onMounted, onScopeDispose, reactive, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { VAlert } from 'vuetify/components/VAlert'
-import { VAvatar } from 'vuetify/components/VAvatar'
 import { VBtn } from 'vuetify/components/VBtn'
-import { VCard } from 'vuetify/components/VCard'
-import { VChip } from 'vuetify/components/VChip'
-import { VTable } from 'vuetify/components/VTable'
+import { VSelect } from 'vuetify/components/VSelect'
+import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
+import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
-import { ADMIN_USERS_PATH } from '../../api/adminUsers'
+import { loadAdminUser, loadAdminUserPage } from '../../api/adminUsers'
 import AdminUserAccountDialog from '../../components/admin/AdminUserAccountDialog.vue'
+import AdminUserDirectoryTable from '../../components/admin/AdminUserDirectoryTable.vue'
 import AdminUserPermissionsDialog from '../../components/admin/AdminUserPermissionsDialog.vue'
+import { usePagedDirectory } from '../../composables/usePagedDirectory'
 import { useUserAccountActions } from '../../composables/useUserAccountActions'
 import { useAuthStore } from '../../stores/auth'
-import { getAccountInitials } from '../../utils/accountInitials'
+import { formatDirectoryPageRange, getDirectoryErrorMessage } from '../../utils/directory'
 
 const auth = useAuthStore()
 const router = useRouter()
 const pageHeading = useTemplateRef('pageHeading')
 const directoryHeading = useTemplateRef('directoryHeading')
-const directory = shallowRef(null)
-const error = shallowRef(null)
-const loading = ref(false)
-const requestedPage = ref(1)
+const initialFilters = { search: '', status: 'all', role: '' }
+const filters = reactive({ ...initialFilters })
+const statusOptions = [
+  { title: 'All statuses', value: 'all' },
+  { title: 'Active', value: 'active' },
+  { title: 'Disabled', value: 'disabled' },
+]
 const notice = ref('')
 const refreshingAccess = ref(false)
+const loadingAccountId = ref(null)
+const accountError = ref('')
 const requests = new AbortController()
+let accountRequest
+
+const {
+  query: directoryQuery,
+  result: directory,
+  error,
+  loading,
+  load,
+} = usePagedDirectory({
+  fetchPage: (query, signal) => loadAdminUserPage(auth.request, query, signal),
+  signal: requests.signal,
+  initialQuery: { page: 1, ...initialFilters },
+})
+const filtersApplied = computed(
+  () =>
+    directoryQuery.value.search !== '' ||
+    directoryQuery.value.status !== 'all' ||
+    directoryQuery.value.role !== '',
+)
+const canClear = computed(
+  () => Boolean(filters.search || filters.role || filters.status !== 'all') || filtersApplied.value,
+)
 const {
   action,
   saving,
@@ -39,67 +68,78 @@ const {
 } = useUserAccountActions({ request: auth.request, signal: requests.signal })
 let actionTrigger
 const accessDenied = computed(() => error.value?.status === 403)
-const pageRange = computed(() => {
-  const result = directory.value
-  if (!result?.users.length) return ''
+const errorMessage = computed(() =>
+  getDirectoryErrorMessage(error.value, 'Unable to load users.', {
+    403: 'You do not have permission to view users.',
+  }),
+)
+const pageRange = computed(() =>
+  formatDirectoryPageRange(directory.value, directory.value?.users.length, 'user', 'users'),
+)
 
-  const first = (result.currentPage - 1) * result.perPage + 1
-  const last = first + result.users.length - 1
-  const range = first === last ? first : `${first}–${last}`
-  return `${range} of ${result.total} ${result.total === 1 ? 'user' : 'users'}`
-})
+function loadPage(page = directoryQuery.value.page, nextFilters = directoryQuery.value) {
+  accountRequest?.abort()
+  accountRequest = undefined
+  loadingAccountId.value = null
+  accountError.value = ''
+  return load({ ...nextFilters, page })
+}
 
-async function loadPage(page = 1) {
-  if (loading.value) return
+function applyFilters() {
+  void loadPage(1, {
+    search: (filters.search ?? '').trim(),
+    status: filters.status,
+    role: (filters.role ?? '').trim(),
+  })
+}
 
-  const { signal } = requests
-  requestedPage.value = page
-  loading.value = true
-  error.value = null
-
-  try {
-    const { data, meta } = await auth.request(`${ADMIN_USERS_PATH}?page=${page}`, { signal })
-    if (signal.aborted) return
-
-    if (
-      !Array.isArray(data?.users) ||
-      !Number.isInteger(meta?.current_page) ||
-      meta.current_page < 1 ||
-      !Number.isInteger(meta.per_page) ||
-      meta.per_page < 1 ||
-      !Number.isInteger(meta.last_page) ||
-      meta.last_page < 1 ||
-      !Number.isInteger(meta.total) ||
-      meta.total < 0
-    ) {
-      throw new Error('Invalid user directory response.')
-    }
-
-    directory.value = {
-      users: data.users,
-      currentPage: meta.current_page,
-      perPage: meta.per_page,
-      lastPage: meta.last_page,
-      total: meta.total,
-    }
-    return directory.value
-  } catch (failure) {
-    if (!signal.aborted && failure.status !== 401) error.value = failure
-  } finally {
-    loading.value = false
-  }
+function clearFilters() {
+  Object.assign(filters, initialFilters)
+  void loadPage(1, initialFilters)
 }
 
 async function changePage(page) {
-  await loadPage(page)
+  const result = await loadPage(page)
+  if (!result) return
+
   await nextTick()
-  directoryHeading.value?.focus()
+  directoryHeading.value?.focus({ preventScroll: true })
 }
 
-function openAccountAction(mode, account, event) {
-  actionTrigger = event.currentTarget
+function openAccountAction(mode, account, trigger) {
+  actionTrigger = trigger
   notice.value = ''
+  accountError.value = ''
   openAction(mode, account)
+}
+
+async function manageAccount(account, event) {
+  const trigger = event.currentTarget
+  accountRequest?.abort()
+  const controller = new AbortController()
+  accountRequest = controller
+  const signal = AbortSignal.any([requests.signal, controller.signal])
+  loadingAccountId.value = account.id
+  accountError.value = ''
+
+  try {
+    const current = await loadAdminUser(auth.request, account.id, signal)
+    if (!signal.aborted && auth.canManageUsers) openAccountAction('edit', current, trigger)
+  } catch (failure) {
+    if (signal.aborted || failure?.status === 401) return
+
+    accountError.value =
+      failure?.status === 403
+        ? 'You do not have permission to manage this account.'
+        : failure?.status === 404
+          ? 'This account is no longer available.'
+          : 'Unable to load account details. Try again.'
+  } finally {
+    if (accountRequest === controller) {
+      accountRequest = undefined
+      loadingAccountId.value = null
+    }
+  }
 }
 
 async function restoreActionFocus() {
@@ -169,27 +209,25 @@ async function submitAccountAction(body) {
 
   if (mode === 'roles' && isSelf && !(await refreshOwnAccess('Roles updated.'))) return
 
-  if (mode === 'create') {
-    notice.value = 'User created.'
-    const page = await loadPage(directory.value?.lastPage ?? 1)
-    if (page && page.currentPage !== page.lastPage) await loadPage(page.lastPage)
-  } else {
-    const page = directory.value
-    if (page) {
-      directory.value = {
-        ...page,
-        users: page.users.map((account) => (account.id === user.id ? user : account)),
-      }
-    }
-    if (mode === 'edit' && isSelf) {
-      auth.user = { ...auth.user, name: user.name, email: user.email }
-    }
-    notice.value = {
-      disable: 'Account disabled.',
-      enable: 'Account enabled.',
-      edit: 'User details saved.',
-      roles: 'Roles updated.',
-    }[mode]
+  if (mode === 'edit' && isSelf) {
+    auth.user = { ...auth.user, name: user.name, email: user.email }
+  }
+  notice.value = {
+    create: 'User created.',
+    disable: 'Account disabled.',
+    enable: 'Account enabled.',
+    edit: 'User details saved.',
+    roles: 'Roles updated.',
+  }[mode]
+
+  const jumpToLast = mode === 'create' && !filtersApplied.value
+  const preferredPage = jumpToLast ? (directory.value?.lastPage ?? 1) : directoryQuery.value.page
+  const page = await loadPage(preferredPage)
+  if (
+    page &&
+    (page.currentPage > page.lastPage || (jumpToLast && page.currentPage !== page.lastPage))
+  ) {
+    await loadPage(page.lastPage)
   }
 
   await restoreActionFocus()
@@ -216,8 +254,8 @@ onScopeDispose(() => requests.abort())
         variant="flat"
         rounded="lg"
         class="text-none"
-        :disabled="loading || accessDenied || refreshingAccess"
-        @click="openAccountAction('create', null, $event)"
+        :disabled="loading || accessDenied || refreshingAccess || loadingAccountId !== null"
+        @click="openAccountAction('create', null, $event.currentTarget)"
       >
         Add user
       </VBtn>
@@ -234,13 +272,61 @@ onScopeDispose(() => requests.abort())
       {{ notice }}
     </VAlert>
 
-    <VCard color="surface" class="directory-card" variant="flat" border>
+    <VAlert v-if="accountError" class="account-error" type="error" variant="tonal" role="alert">
+      {{ accountError }}
+    </VAlert>
+
+    <DirectoryPanel>
       <div class="directory-card-header">
         <h2 ref="directoryHeading" tabindex="-1">User directory</h2>
         <span v-if="directory && !loading && !error" class="directory-detail">
           {{ directory.total }} {{ directory.total === 1 ? 'account' : 'accounts' }}
         </span>
       </div>
+
+      <form class="directory-filters" aria-label="User filters" @submit.prevent="applyFilters">
+        <VTextField
+          v-model="filters.search"
+          label="Name or email"
+          :prepend-inner-icon="aliases.search"
+          variant="outlined"
+          density="compact"
+          maxlength="255"
+          hide-details
+          clearable
+        />
+        <VSelect
+          v-model="filters.status"
+          :items="statusOptions"
+          label="Status"
+          variant="outlined"
+          density="compact"
+          hide-details
+        />
+        <VTextField
+          v-model="filters.role"
+          label="Exact role name"
+          variant="outlined"
+          density="compact"
+          maxlength="255"
+          hide-details
+          clearable
+        />
+        <div class="filter-actions">
+          <VBtn type="submit" color="primary" variant="flat" class="text-none">
+            Apply filters
+          </VBtn>
+          <VBtn
+            v-if="canClear"
+            type="button"
+            variant="text"
+            class="text-none"
+            @click="clearFilters"
+          >
+            Clear
+          </VBtn>
+        </div>
+      </form>
 
       <DirectoryState
         v-if="loading"
@@ -253,9 +339,7 @@ onScopeDispose(() => requests.abort())
         v-else-if="error"
         class="directory-state"
         kind="error"
-        :message="
-          accessDenied ? 'You do not have permission to view users.' : 'Unable to load users.'
-        "
+        :message="errorMessage"
       >
         <template #actions>
           <VBtn
@@ -263,7 +347,7 @@ onScopeDispose(() => requests.abort())
             class="text-none"
             color="primary"
             variant="outlined"
-            @click="changePage(requestedPage)"
+            @click="changePage(directoryQuery.page)"
           >
             Try again
           </VBtn>
@@ -275,7 +359,11 @@ onScopeDispose(() => requests.abort())
           v-if="!directory.users.length"
           class="directory-state"
           kind="empty"
-          :message="directory.total === 0 ? 'No users found.' : 'No users on this page.'"
+          :message="
+            directory.total === 0 && filtersApplied
+              ? 'No users match these filters.'
+              : 'No users on this page.'
+          "
         >
           <template #actions>
             <VBtn
@@ -290,118 +378,43 @@ onScopeDispose(() => requests.abort())
           </template>
         </DirectoryState>
 
-        <VTable v-else class="directory-table" aria-label="OMS user accounts" density="compact">
-          <colgroup>
-            <col class="account-column" />
-            <col class="roles-column" />
-            <col />
-            <col class="actions-column" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th scope="col">User</th>
-              <th scope="col">Roles</th>
-              <th scope="col">Status</th>
-              <th scope="col"><span class="d-sr-only">Actions</span></th>
-            </tr>
-          </thead>
-          <tbody role="rowgroup">
-            <tr v-for="account in directory.users" :key="account.id" role="row">
-              <th scope="row" role="rowheader">
-                <div class="account-identity">
-                  <VAvatar size="34" color="primary" variant="tonal" aria-hidden="true">
-                    {{ getAccountInitials(account.name) }}
-                  </VAvatar>
-                  <div class="account-text">
-                    <span class="account-name">{{ account.name }}</span>
-                    <span class="directory-detail">{{ account.email }}</span>
-                  </div>
-                </div>
-              </th>
-              <td role="cell">
-                <span class="mobile-column-label" aria-hidden="true">Roles</span>
-                <div v-if="account.roles.length" class="role-list">
-                  <VChip
-                    v-for="role in account.roles"
-                    :key="role"
-                    :color="role === 'admin' ? 'primary' : undefined"
-                    size="small"
-                    variant="tonal"
-                    label
-                  >
-                    {{ role }}
-                  </VChip>
-                </div>
-                <span v-else class="directory-detail">No role</span>
-              </td>
-              <td role="cell">
-                <span class="mobile-column-label" aria-hidden="true">Status</span>
-                <span
-                  class="account-status"
-                  :class="{ 'account-status--active': account.is_active }"
-                >
-                  {{ account.is_active ? 'Active' : 'Disabled' }}
-                </span>
-              </td>
-              <td role="cell" class="table-action">
-                <VBtn
-                  :aria-label="`Manage ${account.name}`"
-                  :append-icon="aliases.next"
-                  class="manage-account text-none"
-                  type="button"
-                  variant="text"
-                  size="small"
-                  color="primary"
-                  :disabled="refreshingAccess"
-                  @click="openAccountAction('edit', account, $event)"
-                >
-                  Manage
-                </VBtn>
-              </td>
-            </tr>
-          </tbody>
-        </VTable>
+        <AdminUserDirectoryTable
+          v-else
+          :accounts="directory.users"
+          :disabled="refreshingAccess"
+          :loading-account-id="loadingAccountId"
+          @manage="manageAccount"
+        />
 
-        <nav
+        <footer
           v-if="
             directory.users.length ||
             (directory.lastPage > 1 && directory.currentPage <= directory.lastPage)
           "
           class="directory-pagination"
-          aria-label="User directory pages"
         >
           <span class="directory-detail" aria-live="polite">
             {{ pageRange }}
           </span>
-          <div v-if="directory.lastPage > 1" class="page-actions">
-            <VBtn
-              aria-label="Previous page"
-              :icon="aliases.prev"
-              size="small"
-              rounded="lg"
-              variant="outlined"
-              :disabled="directory.currentPage <= 1"
-              @click="changePage(directory.currentPage - 1)"
-            />
+          <DirectoryPagination
+            v-if="directory.lastPage > 1"
+            class="page-actions"
+            label="User directory pages"
+            :current-page="directory.currentPage"
+            :last-page="directory.lastPage"
+            rounded="lg"
+            @page-change="changePage"
+          >
             <span class="directory-detail" aria-hidden="true">
               {{ directory.currentPage }} / {{ directory.lastPage }}
             </span>
             <span class="d-sr-only">
               Page {{ directory.currentPage }} of {{ directory.lastPage }}
             </span>
-            <VBtn
-              aria-label="Next page"
-              :icon="aliases.next"
-              size="small"
-              rounded="lg"
-              variant="outlined"
-              :disabled="directory.currentPage >= directory.lastPage"
-              @click="changePage(directory.currentPage + 1)"
-            />
-          </div>
-        </nav>
+          </DirectoryPagination>
+        </footer>
       </template>
-    </VCard>
+    </DirectoryPanel>
 
     <AdminUserPermissionsDialog
       v-if="action?.mode === 'permissions' && auth.canAssignUserRoles"
@@ -465,12 +478,6 @@ onScopeDispose(() => requests.abort())
   font-size: 0.875rem;
 }
 
-.directory-card {
-  border-color: rgba(var(--v-theme-on-surface), 0.14);
-  border-radius: 12px;
-  box-shadow: 0 2px 7px rgba(var(--v-theme-on-surface), 0.045);
-}
-
 .directory-notice {
   margin-bottom: 12px;
 }
@@ -498,101 +505,12 @@ onScopeDispose(() => requests.abort())
   padding: 20px clamp(14px, 2.1vw, 24px) 28px;
 }
 
-.directory-table :deep(.v-table__wrapper) {
-  border-radius: 0;
-}
-
-.directory-table :deep(thead) {
-  background: rgba(var(--v-theme-primary), 0.07);
-  font-size: 0.8125rem;
-}
-
-.directory-table th[scope='row'] {
-  padding-block: 12px;
-  font-weight: 500;
-}
-
-.account-identity {
-  display: flex;
-  min-width: 0;
-  gap: 10px;
-  align-items: center;
-}
-
-.account-identity :deep(.v-avatar) {
-  flex: none;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.account-text {
-  min-width: 0;
-}
-
-.account-name,
 .directory-detail {
   display: block;
   overflow-wrap: anywhere;
-}
-
-.account-name {
-  font-weight: 600;
-}
-
-.directory-detail {
   color: rgba(var(--v-theme-on-surface), 0.77);
   font-size: 0.8125rem;
   font-weight: 400;
-}
-
-.role-list,
-.page-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.role-list :deep(.v-chip) {
-  max-width: 100%;
-  height: auto;
-  min-height: 24px;
-  padding-block: 2px;
-  border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  border-radius: 6px;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  text-transform: capitalize;
-}
-
-.account-status {
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-  color: rgba(var(--v-theme-on-surface), 0.76);
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-.account-status::before {
-  width: 7px;
-  height: 7px;
-  flex: 0 0 7px;
-  border-radius: 50%;
-  background: currentColor;
-  content: '';
-}
-
-.account-status--active {
-  color: rgb(var(--v-theme-primary));
-}
-
-.table-action {
-  text-align: end;
-}
-
-.manage-account :deep(.v-btn__append) {
-  margin-inline-start: 3px;
 }
 
 .directory-pagination {
@@ -600,6 +518,7 @@ onScopeDispose(() => requests.abort())
 }
 
 .page-actions {
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -607,67 +526,34 @@ onScopeDispose(() => requests.abort())
   border-color: rgba(var(--v-theme-on-surface), 0.18);
 }
 
-.mobile-column-label {
-  display: none;
+.directory-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(8rem, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px 16px;
 }
 
-@media (min-width: 600px) {
-  .directory-table :deep(table) {
-    table-layout: fixed;
-  }
+.filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
 
-  .account-column {
-    width: 44%;
-  }
+.account-error {
+  margin-bottom: 16px;
+}
 
-  .roles-column {
-    width: 21%;
-  }
-
-  .actions-column {
-    width: 16%;
+@media (max-width: 960px) {
+  .directory-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 599px) {
-  .directory-table :deep(thead) {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-  }
-
-  .directory-table tbody tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 9px 10px;
-    align-items: end;
-    padding: 12px 14px;
-    border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-  }
-
-  .directory-table th[scope='row'],
-  .directory-table td {
-    height: auto;
-    padding: 0;
-    border: 0;
-  }
-
-  .directory-table th[scope='row'] {
-    grid-column: 1 / -1;
-  }
-
-  .manage-account {
-    min-height: 44px;
-    padding-inline: 6px;
-  }
-
-  .mobile-column-label {
-    display: block;
-    margin-bottom: 2px;
-    color: rgba(var(--v-theme-on-surface), 0.77);
-    font-size: 0.75rem;
+@media (max-width: 560px) {
+  .directory-filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

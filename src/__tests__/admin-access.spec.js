@@ -8,6 +8,7 @@ vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
 vi.mock('../views/AccessDeniedView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
+vi.mock('../views/admin/AccessAuditView.vue', () => ({ default: {} }))
 vi.mock('../views/customers/CustomerDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/products/ProductDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/OrderDirectoryView.vue', () => ({ default: {} }))
@@ -91,6 +92,23 @@ it.each([
     rememberAccount(roles, permissions)
 
     await router.push('/admin/roles')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it.each([
+  { roles: ['admin'], permissions: ['audit.view'], destination: 'admin-access-audit' },
+  { roles: ['admin'], permissions: ['users.manage'], destination: 'access-denied' },
+  { roles: ['Admin'], permissions: ['audit.view'], destination: 'access-denied' },
+  { roles: ['manager'], permissions: ['audit.view'], destination: 'access-denied' },
+])(
+  'checks the independent access audit grant for $roles',
+  async ({ roles, permissions, destination }) => {
+    rememberAccount(roles, permissions)
+
+    await router.push('/admin/access-audit')
 
     expect(router.currentRoute.value.name).toBe(destination)
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])

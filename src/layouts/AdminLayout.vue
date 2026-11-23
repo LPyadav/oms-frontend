@@ -151,6 +151,14 @@ function focusMain() {
           </template>
         </VListItem>
         <VListItem
+          v-if="auth.canViewAccessAudit"
+          :to="{ name: 'admin-access-audit' }"
+          :prepend-icon="aliases.info"
+          title="Access audit"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
           v-if="auth.canViewOrders"
           :to="{ name: 'orders' }"
           :prepend-icon="aliases.calendar"

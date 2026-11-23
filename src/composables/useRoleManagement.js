@@ -6,18 +6,20 @@ import {
   renameRole,
   replaceRolePermissions,
 } from '../api/adminRoles'
+import { getDirectoryErrorMessage } from '../utils/directory'
 
 const builtInRoles = new Set(['admin', 'manager', 'staff'])
+const roleErrorMessages = {
+  403: 'Your account does not have permission for this action.',
+  404: 'This role is no longer available.',
+}
 
 export function isBuiltInRole(name) {
   return builtInRoles.has(name.toLowerCase())
 }
 
 function errorMessage(error, fallback) {
-  if (error.status === 403) return 'Your account does not have permission for this action.'
-  if (error.status === 404) return 'This role is no longer available.'
-  if (error.status === 429) return 'Too many requests. Try again shortly.'
-  return fallback
+  return getDirectoryErrorMessage(error, fallback, roleErrorMessages)
 }
 
 export function useRoleManagement({ request, signal }) {
