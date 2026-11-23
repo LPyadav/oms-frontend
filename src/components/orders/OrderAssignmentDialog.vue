@@ -8,6 +8,8 @@ import { VDialog } from 'vuetify/components/VDialog'
 import { assignOrder, loadOrder, loadOrderAssigneePage } from '../../api/orders'
 import { useAuthStore } from '../../stores/auth'
 import { canChangeOrderAssignee } from '../../utils/orderActivityAccess'
+import { formatOrderAssigneeSubtitle } from '../../utils/orderDisplay'
+import OrderAssigneeIdentity from './OrderAssigneeIdentity.vue'
 import OrderLookupField from './OrderLookupField.vue'
 
 const props = defineProps({ order: { type: Object, required: true } })
@@ -107,6 +109,7 @@ async function reloadOrder() {
     if (controller.signal.aborted) return
 
     snapshot.value = latest
+    if (selected.value?.id === latest.assignee?.id) selected.value = latest.assignee
     fieldErrors.value = []
     reloadRequired.value = false
     let message = 'Latest order loaded. Review the current assignee, then confirm your change.'
@@ -156,7 +159,12 @@ onScopeDispose(() => controller.abort())
         </header>
         <dl class="current-assignment">
           <dt>{{ reloadRequired ? 'Last loaded assignee' : 'Current assignee' }}</dt>
-          <dd>{{ snapshot.assignee?.name ?? 'Unassigned' }}</dd>
+          <dd>
+            <OrderAssigneeIdentity
+              :assignee="snapshot.assignee"
+              :show-details="auth.canAssignOrders"
+            />
+          </dd>
         </dl>
         <VAlert
           v-if="feedback"
@@ -174,6 +182,8 @@ onScopeDispose(() => controller.abort())
           resource="assignees"
           :load-page="loadAssignees"
           :item-title="employeeName"
+          :item-subtitle="formatOrderAssigneeSubtitle"
+          show-item-details
           :disabled="busy || reloadRequired"
           :error-messages="fieldErrors"
           @update:model-value="fieldErrors = []"

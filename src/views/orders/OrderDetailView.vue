@@ -7,6 +7,7 @@ import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import OrderAssigneeIdentity from '../../components/orders/OrderAssigneeIdentity.vue'
 import OrderAssignmentDialog from '../../components/orders/OrderAssignmentDialog.vue'
 import OrderDeleteDialog from '../../components/orders/OrderDeleteDialog.vue'
 import OrderItemsCard from '../../components/orders/OrderItemsCard.vue'
@@ -250,7 +251,10 @@ onScopeDispose(() => controller.abort())
             <div>
               <dt>Assigned to</dt>
               <dd class="detail-assignee">
-                <span>{{ order.assignee?.name ?? 'Unassigned' }}</span>
+                <OrderAssigneeIdentity
+                  :assignee="order.assignee"
+                  :show-details="auth.canAssignOrders"
+                />
                 <VBtn
                   v-if="canAssign"
                   color="primary"
