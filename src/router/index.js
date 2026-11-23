@@ -25,6 +25,19 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         meta: { guestOnly: true },
       },
       {
+        path: '/dashboard',
+        component: workspaceLayout,
+        meta: { requiresAuth: true, sectionTitle: 'Analytics', requiresDashboardView: true },
+        children: [
+          {
+            path: '',
+            name: 'dashboard',
+            component: () => import('../views/DashboardView.vue'),
+            meta: { pageTitle: 'Dashboard' },
+          },
+        ],
+      },
+      {
         path: '/admin',
         component: workspaceLayout,
         redirect: { name: 'admin-users' },
@@ -157,6 +170,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       (to.meta.requiresAccessAudit && !auth.canViewAccessAudit) ||
       (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
       (to.meta.requiresProductView && !auth.canViewProducts) ||
+      (to.meta.requiresDashboardView && !auth.canViewDashboard) ||
       (to.meta.requiresOrderView && !auth.canViewOrders) ||
       (to.meta.requiresOrderCreate && !auth.canCreateOrders) ||
       (to.meta.requiresOrderEdit && !auth.canEditOrders)

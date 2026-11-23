@@ -6,6 +6,7 @@ import { createAppRouter } from '../router'
 vi.mock('../layouts/AdminLayout.vue', () => ({ default: {} }))
 vi.mock('../views/auth/LoginView.vue', () => ({ default: {} }))
 vi.mock('../views/AccessDeniedView.vue', () => ({ default: {} }))
+vi.mock('../views/DashboardView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/UserDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/RolePermissionsView.vue', () => ({ default: {} }))
 vi.mock('../views/admin/AccessAuditView.vue', () => ({ default: {} }))
@@ -110,6 +111,44 @@ it.each([
     rememberAccount(roles, permissions)
 
     await router.push('/admin/access-audit')
+
+    expect(router.currentRoute.value.name).toBe(destination)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it('preserves the dashboard destination for a signed-out visitor', async () => {
+  await router.push('/dashboard')
+
+  expect(router.currentRoute.value.name).toBe('login')
+  expect(router.currentRoute.value.query.redirect).toBe('/dashboard')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each([
+  {
+    roles: ['admin'],
+    permissions: ['dashboard.view', 'orders.view.any'],
+    destination: 'dashboard',
+  },
+  {
+    roles: ['manager'],
+    permissions: ['dashboard.view', 'orders.view.any'],
+    destination: 'dashboard',
+  },
+  {
+    roles: ['staff'],
+    permissions: ['dashboard.view', 'orders.view.assigned'],
+    destination: 'access-denied',
+  },
+  { roles: ['manager'], permissions: ['orders.view.any'], destination: 'access-denied' },
+  { roles: ['admin'], permissions: ['dashboard.view'], destination: 'access-denied' },
+])(
+  'checks Dashboard permissions for $roles with $permissions',
+  async ({ roles, permissions, destination }) => {
+    rememberAccount(roles, permissions)
+
+    await router.push('/dashboard')
 
     expect(router.currentRoute.value.name).toBe(destination)
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
