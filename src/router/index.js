@@ -71,6 +71,45 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         ],
       },
       {
+        path: '/orders',
+        component: workspaceLayout,
+        meta: { requiresAuth: true, sectionTitle: 'Order management', requiresOrderView: true },
+        children: [
+          {
+            path: '',
+            component: () => import('../views/orders/OrdersOutlet.vue'),
+            children: [
+              {
+                path: '',
+                name: 'orders',
+                component: () => import('../views/orders/OrderDirectoryView.vue'),
+                meta: { pageTitle: 'Orders' },
+              },
+              {
+                path: 'new',
+                name: 'order-create',
+                component: () => import('../views/orders/CreateOrderView.vue'),
+                meta: { pageTitle: 'Create order', requiresOrderCreate: true },
+              },
+              {
+                path: ':orderId/edit',
+                name: 'order-edit',
+                component: () => import('../views/orders/EditOrderView.vue'),
+                props: true,
+                meta: { pageTitle: 'Edit order', requiresOrderEdit: true },
+              },
+              {
+                path: ':orderId',
+                name: 'order-detail',
+                component: () => import('../views/orders/OrderDetailView.vue'),
+                props: true,
+                meta: { pageTitle: 'Order detail' },
+              },
+            ],
+          },
+        ],
+      },
+      {
         path: '/access-denied',
         name: 'access-denied',
         component: () => import('../views/AccessDeniedView.vue'),
@@ -104,7 +143,10 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       (to.meta.requiresRoleManagement && !auth.canManageRoles) ||
       (to.meta.requiresAccessAudit && !auth.canViewAccessAudit) ||
       (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
-      (to.meta.requiresProductView && !auth.canViewProducts)
+      (to.meta.requiresProductView && !auth.canViewProducts) ||
+      (to.meta.requiresOrderView && !auth.canViewOrders) ||
+      (to.meta.requiresOrderCreate && !auth.canCreateOrders) ||
+      (to.meta.requiresOrderEdit && !auth.canEditOrders)
     ) {
       return { name: 'access-denied', replace: true }
     }

@@ -95,3 +95,30 @@ it('propagates a caller cancellation before the custom timeout', async () => {
   expect(createTimeout).toHaveBeenCalledExactlyOnceWith(30_000)
   expect(timeout.signal.aborted).toBe(false)
 })
+
+it('sends an order idempotency key with a custom timeout', async () => {
+  const orderPath = '/api/orders'
+  const body = { customer_id: 12 }
+  const payload = { success: true, data: { id: 42 } }
+  fetchMock.mockResolvedValueOnce(Response.json(payload))
+
+  await expect(
+    apiRequest(orderPath, {
+      method: 'POST',
+      body,
+      idempotencyKey: 'order-draft-attempt',
+      timeoutMs: 30_000,
+    }),
+  ).resolves.toEqual(payload)
+
+  expect(createTimeout).toHaveBeenCalledExactlyOnceWith(30_000)
+  expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+    orderPath,
+    expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ 'Idempotency-Key': 'order-draft-attempt' }),
+      body: JSON.stringify(body),
+      signal: timeout.signal,
+    }),
+  )
+})

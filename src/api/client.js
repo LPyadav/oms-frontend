@@ -13,7 +13,7 @@ export class ApiError extends Error {
 
 export async function apiRequest(
   path,
-  { method = 'GET', body, signal, token, timeoutMs = 10_000 } = {},
+  { method = 'GET', body, signal, token, idempotencyKey, timeoutMs = 10_000 } = {},
 ) {
   if (!path.startsWith('/api/')) {
     throw new TypeError('API requests must use a same-origin /api/ path.')
@@ -25,6 +25,7 @@ export async function apiRequest(
 
   const headers = { Accept: 'application/json' }
   if (token) headers.Authorization = `Bearer ${token}`
+  if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey
 
   const timeout = AbortSignal.timeout(timeoutMs)
   const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout

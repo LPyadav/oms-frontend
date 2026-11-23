@@ -89,6 +89,47 @@ export const useAuthStore = defineStore('auth', () => {
   const canManageProducts = computed(
     () => isAdmin.value && user.value.permissions.includes('products.manage'),
   )
+  const canViewAllOrders = computed(
+    () => isAuthenticated.value && user.value?.permissions.includes('orders.view.any') === true,
+  )
+  const canViewOrders = computed(
+    () =>
+      canViewAllOrders.value ||
+      (isAuthenticated.value && user.value?.permissions.includes('orders.view.assigned') === true),
+  )
+
+  const canChangeAnyOrderStatus = computed(
+    () => canViewAllOrders.value && user.value.permissions.includes('orders.status.update.any'),
+  )
+  const canChangeAssignedOrderStatus = computed(
+    () =>
+      isAuthenticated.value &&
+      user.value.permissions.includes('orders.view.assigned') &&
+      user.value.permissions.includes('orders.status.update.assigned'),
+  )
+  const canEditOrders = computed(
+    () => canViewAllOrders.value && user.value.permissions.includes('orders.update'),
+  )
+  const canDeleteOrders = computed(
+    () =>
+      canViewAllOrders.value && isAdmin.value && user.value.permissions.includes('orders.delete'),
+  )
+  const canCreateOrders = computed(
+    () => canViewAllOrders.value && user.value.permissions.includes('orders.create'),
+  )
+  const canAssignOrders = computed(
+    () => canViewAllOrders.value && user.value.permissions.includes('orders.assign'),
+  )
+  const canAddOrderNote = computed(
+    () => canViewAllOrders.value && user.value.permissions.includes('orders.notes.create.any'),
+  )
+
+  const canAddAssignedOrderNote = computed(
+    () =>
+      isAuthenticated.value &&
+      user.value.permissions.includes('orders.view.assigned') &&
+      user.value.permissions.includes('orders.notes.create.assigned'),
+  )
 
   let session = readSession()
   let expiryTimer
@@ -297,6 +338,16 @@ export const useAuthStore = defineStore('auth', () => {
     canManageCustomers,
     canViewProducts,
     canManageProducts,
+    canViewOrders,
+    canViewAllOrders,
+    canChangeAnyOrderStatus,
+    canChangeAssignedOrderStatus,
+    canCreateOrders,
+    canEditOrders,
+    canDeleteOrders,
+    canAssignOrders,
+    canAddOrderNote,
+    canAddAssignedOrderNote,
     initialize,
     login,
     logout,

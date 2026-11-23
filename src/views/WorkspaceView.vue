@@ -12,6 +12,7 @@ const {
   canViewAccessAudit,
   canViewCustomers,
   canViewProducts,
+  canViewOrders,
   isAuthenticated,
   user,
 } = storeToRefs(auth)
@@ -96,6 +97,16 @@ async function signOut() {
         height="48"
       >
         Browse products
+      </VBtn>
+      <VBtn
+        v-if="canViewOrders"
+        :to="{ name: 'orders' }"
+        class="text-none"
+        color="primary"
+        :variant="canManageUsers || canViewCustomers || canViewProducts ? 'outlined' : 'flat'"
+        height="48"
+      >
+        Browse orders
       </VBtn>
       <VBtn
         class="text-none"
