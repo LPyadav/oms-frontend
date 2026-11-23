@@ -9,6 +9,7 @@ import AdminRoleNameDialog from '../../components/admin/AdminRoleNameDialog.vue'
 import AdminRolePermissionPanel from '../../components/admin/AdminRolePermissionPanel.vue'
 import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
 import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
+import DirectoryLoadingState from '../../components/directory/DirectoryLoadingState.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import { isBuiltInRole, useRoleManagement } from '../../composables/useRoleManagement'
 import { useAuthStore } from '../../stores/auth'
@@ -174,12 +175,7 @@ onScopeDispose(() => requests.abort())
         <header class="role-card-header">
           <h2 ref="rolesHeading" tabindex="-1">Roles</h2>
         </header>
-        <DirectoryState
-          v-if="pageLoading"
-          class="role-state"
-          kind="loading"
-          message="Loading roles…"
-        />
+        <DirectoryLoadingState v-if="pageLoading" layout="list" message="Loading roles…" />
         <DirectoryState v-else-if="pageError" class="role-state" kind="error" :message="pageError">
           <template #actions>
             <VBtn
