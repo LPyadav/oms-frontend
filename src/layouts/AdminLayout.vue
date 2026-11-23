@@ -121,7 +121,7 @@ function focusMain() {
           </VAvatar>
           <div>
             <strong>OMS</strong>
-            <span>Order management</span>
+            <span class="admin-brand-caption">Order management</span>
           </div>
           <VBtn
             v-if="!mdAndUp"
@@ -345,7 +345,7 @@ function focusMain() {
 }
 
 .admin-drawer {
-  background-image: linear-gradient(165deg, rgba(var(--v-theme-primary), 0.24), transparent 58%);
+  background-image: linear-gradient(165deg, rgba(var(--v-theme-primary), 0.1), transparent 58%);
 }
 
 .admin-drawer :deep(.v-navigation-drawer__content) {
@@ -375,13 +375,14 @@ function focusMain() {
   line-height: 1.2;
 }
 
-.admin-brand div > span {
+.admin-brand-caption {
   display: block;
   font-size: 0.75rem;
   color: rgba(var(--v-theme-on-admin-navigation), 0.78);
 }
 
 .brand-mark {
+  color: rgb(var(--v-theme-on-primary));
   width: 4px;
   height: 13px;
   border-radius: 2px;
@@ -460,8 +461,9 @@ function focusMain() {
 
 .admin-links :deep(.v-list-item--active) {
   --v-activated-opacity: 0;
-  background: rgba(var(--v-theme-primary), 0.44);
-  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-admin-navigation), 0.25);
+  color: rgb(var(--v-theme-primary));
+  background: rgba(var(--v-theme-primary), 0.15);
+  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-primary), 0.25);
 }
 
 .admin-links :deep(.v-list-item--active .v-list-item__title) {
