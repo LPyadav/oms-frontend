@@ -13,7 +13,15 @@ export class ApiError extends Error {
 
 export async function apiRequest(
   path,
-  { method = 'GET', body, signal, token, idempotencyKey, timeoutMs = 10_000 } = {},
+  {
+    method = 'GET',
+    body,
+    signal,
+    token,
+    idempotencyKey,
+    timeoutMs = 10_000,
+    responseType = 'json',
+  } = {},
 ) {
   if (!path.startsWith('/api/')) {
     throw new TypeError('API requests must use a same-origin /api/ path.')
@@ -23,7 +31,9 @@ export async function apiRequest(
     throw new RangeError('timeoutMs must be an integer from 1 to 2147483647 milliseconds.')
   }
 
-  const headers = { Accept: 'application/json' }
+  const headers = {
+    Accept: responseType === 'blob' ? 'application/json, */*;q=0.9' : 'application/json',
+  }
   if (token) headers.Authorization = `Bearer ${token}`
   if (idempotencyKey) headers['Idempotency-Key'] = idempotencyKey
 
@@ -47,6 +57,8 @@ export async function apiRequest(
 
   try {
     response = await fetch(path, options)
+    if (response.ok && responseType === 'blob') return await response.blob()
+
     payload = await response.json().catch((error) => {
       if (requestSignal.aborted) throw error
       return null

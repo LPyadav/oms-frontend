@@ -20,11 +20,12 @@ import { VSelect } from 'vuetify/components/VSelect'
 import { VTable } from 'vuetify/components/VTable'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
-import { loadOrderFilterPartyPage, loadOrderPage } from '../../api/orders'
+import { loadOrderFilterPartyPage, loadOrderPage, loadOrdersCsv } from '../../api/orders'
 import OrderLookupField from '../../components/orders/OrderLookupField.vue'
 import { usePagedDirectory } from '../../composables/usePagedDirectory'
 import { FIRST_ORDER_PAGE, ORDER_PRIORITY, ORDER_SORT, ORDER_STATUS } from '../../constants/orders'
 import { useAuthStore } from '../../stores/auth'
+import { downloadCsv } from '../../utils/csv'
 import { formatOrderDate, formatOrderTotal } from '../../utils/orderDisplay'
 
 const auth = useAuthStore()
@@ -37,6 +38,9 @@ const draftQuery = computed(() => ({
   assigneeId: selectedParties.assignee?.id ?? null,
 }))
 const showFilters = ref(false)
+const exporting = ref(false)
+const exportError = ref('')
+let exportRequest
 const requests = new AbortController()
 const { query, result, error, loading, load } = usePagedDirectory({
   fetchPage: (next, signal) => loadOrderPage(auth.request, next, signal),
@@ -103,6 +107,33 @@ const errorMessage = computed(() => {
   return 'Unable to load orders. Try again.'
 })
 
+async function exportOrders() {
+  if (exportRequest || loading.value || !auth.canViewAllOrders) return
+
+  const controller = new AbortController()
+  exportRequest = controller
+  exporting.value = true
+  exportError.value = ''
+
+  try {
+    const csv = await loadOrdersCsv(auth.request, query.value, controller.signal)
+    if (controller.signal.aborted) return
+
+    downloadCsv(csv, 'orders.csv')
+  } catch (failure) {
+    if (controller.signal.aborted || failure?.status === 401) return
+
+    exportError.value =
+      failure?.fields?.export?.[0] ??
+      (failure?.status === 429
+        ? 'Too many exports. Try again shortly.'
+        : 'Unable to export orders. Try again.')
+  } finally {
+    exportRequest = undefined
+    exporting.value = false
+  }
+}
+
 function applyFilters() {
   clearTimeout(searchTimer)
   if (dateErrors.value.length) {
@@ -145,9 +176,14 @@ onActivated(() => {
   const page = search === query.value.search ? query.value.page : 1
   void load({ ...query.value, search, page })
 })
-onDeactivated(() => clearTimeout(searchTimer))
+onDeactivated(() => {
+  clearTimeout(searchTimer)
+  exportRequest?.abort()
+  exportError.value = ''
+})
 onScopeDispose(() => {
   clearTimeout(searchTimer)
+  exportRequest?.abort()
   requests.abort()
 })
 </script>
@@ -159,15 +195,34 @@ onScopeDispose(() => {
       <VChip v-if="!auth.canViewAllOrders" size="small" color="primary" variant="tonal" label>
         Assigned to you
       </VChip>
-      <VBtn
-        v-if="auth.canCreateOrders"
-        :to="{ name: 'order-create' }"
-        color="primary"
-        variant="flat"
-        class="text-none"
-        >Create order</VBtn
-      >
+      <div v-if="auth.canViewAllOrders || auth.canCreateOrders" class="orders-header-actions">
+        <VBtn
+          v-if="auth.canViewAllOrders"
+          type="button"
+          color="primary"
+          variant="outlined"
+          class="text-none"
+          :loading="exporting"
+          :disabled="loading || exporting"
+          @click="exportOrders"
+        >
+          Export CSV
+        </VBtn>
+        <VBtn
+          v-if="auth.canCreateOrders"
+          :to="{ name: 'order-create' }"
+          color="primary"
+          variant="flat"
+          class="text-none"
+        >
+          Create order
+        </VBtn>
+      </div>
     </header>
+
+    <VAlert v-if="exportError" type="error" variant="tonal" :icon="false" role="alert">
+      {{ exportError }}
+    </VAlert>
 
     <VCard color="surface" variant="flat" border class="orders-card">
       <form
@@ -443,6 +498,12 @@ onScopeDispose(() => {
 
 .orders-header {
   margin-bottom: 20px;
+}
+
+.orders-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .orders-header h1 {

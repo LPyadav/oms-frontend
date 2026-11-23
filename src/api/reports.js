@@ -1,4 +1,5 @@
 import { SALES_TAX_AMOUNTS } from '../constants/reports'
+import { isCsvBlob } from '../utils/csv'
 import { isReportTimeZone } from '../utils/reportDates'
 import { ApiError } from './client'
 import { isCalendarDate, isOrderSummary } from './orders'
@@ -54,6 +55,31 @@ function reportParams({ page, perPage, dateFrom, dateTo }, filters) {
   return params
 }
 
+function fulfillmentParams(query) {
+  return reportParams(query, {
+    status: query.status,
+    customer_id: query.customerId,
+    assignee_id: query.assigneeId,
+  })
+}
+
+function salesTaxParams(query) {
+  return reportParams(query, { customer_id: query.customerId, product_id: query.productId })
+}
+
+async function loadReportCsv(request, path, params, signal) {
+  params.delete('page')
+  params.delete('per_page')
+  const query = params.size ? '?' + params : ''
+  const csv = await request(path + query, { responseType: 'blob', signal })
+  if (!isCsvBlob(csv)) {
+    throw new ApiError('The server returned an invalid report export.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+  return csv
+}
+
 function readReport(response, { page, isEntry, amountFields, invalidMessage }) {
   const result = readPaginatedResource(response, {
     resource: 'orders',
@@ -78,11 +104,7 @@ function readReport(response, { page, isEntry, amountFields, invalidMessage }) {
 }
 
 export async function loadOrderFulfillmentReport(request, query, signal) {
-  const params = reportParams(query, {
-    status: query.status,
-    customer_id: query.customerId,
-    assignee_id: query.assigneeId,
-  })
+  const params = fulfillmentParams(query)
   const response = await request('/api/reports/orders?' + params, { signal })
 
   return readReport(response, {
@@ -94,7 +116,7 @@ export async function loadOrderFulfillmentReport(request, query, signal) {
 }
 
 export async function loadSalesTaxReport(request, query, signal) {
-  const params = reportParams(query, { customer_id: query.customerId, product_id: query.productId })
+  const params = salesTaxParams(query)
   const response = await request('/api/reports/sales-tax?' + params, { signal })
   const result = readReport(response, {
     page: query.page,
@@ -109,4 +131,12 @@ export async function loadSalesTaxReport(request, query, signal) {
   }
 
   return { ...result, timezone }
+}
+
+export function loadOrderFulfillmentCsv(request, query, signal) {
+  return loadReportCsv(request, '/api/reports/orders/export', fulfillmentParams(query), signal)
+}
+
+export function loadSalesTaxCsv(request, query, signal) {
+  return loadReportCsv(request, '/api/reports/sales-tax/export', salesTaxParams(query), signal)
 }

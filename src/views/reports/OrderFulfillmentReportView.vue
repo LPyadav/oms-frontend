@@ -1,11 +1,12 @@
 <script setup>
 import { computed, nextTick, onMounted, onScopeDispose, reactive, useTemplateRef } from 'vue'
+import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VSelect } from 'vuetify/components/VSelect'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { loadOrderFilterPartyPage } from '../../api/orders'
-import { loadOrderFulfillmentReport } from '../../api/reports'
+import { loadOrderFulfillmentCsv, loadOrderFulfillmentReport } from '../../api/reports'
 import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
 import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
@@ -24,8 +25,21 @@ const resultsHeading = useTemplateRef('orders-heading')
 const requests = new AbortController()
 const emptyFields = { dateFrom: '', dateTo: '', status: '', customer: null, assignee: null }
 const fields = reactive({ ...emptyFields })
-const { query, result, error, loading, load, loadPage } = useReportDirectory({
+const {
+  query,
+  result,
+  error,
+  loading,
+  load,
+  loadPage,
+  canExport,
+  exporting,
+  exportError,
+  exportReport,
+} = useReportDirectory({
   fetchPage: (query, signal) => loadOrderFulfillmentReport(auth.request, query, signal),
+  fetchCsv: (query, signal) => loadOrderFulfillmentCsv(auth.request, query, signal),
+  fileName: 'order-fulfillment.csv',
   initialQuery: { page: 1 },
   signal: requests.signal,
 })
@@ -101,9 +115,26 @@ onScopeDispose(() => requests.abort())
 <template>
   <section v-if="auth.canViewReports" class="report-page" aria-labelledby="fulfillment-title">
     <header class="report-header">
-      <h1 id="fulfillment-title" ref="heading" tabindex="-1">Order status report</h1>
-      <p>Review fulfillment progress and order totals by business order date.</p>
+      <div>
+        <h1 id="fulfillment-title" ref="heading" tabindex="-1">Order status report</h1>
+        <p>Review fulfillment progress and order totals by business order date.</p>
+      </div>
+      <VBtn
+        type="button"
+        color="primary"
+        variant="outlined"
+        class="text-none"
+        :disabled="!canExport"
+        :loading="exporting"
+        @click="exportReport"
+      >
+        Export CSV
+      </VBtn>
     </header>
+
+    <VAlert v-if="exportError" type="error" variant="tonal" :icon="false" role="alert">
+      {{ exportError }}
+    </VAlert>
 
     <DirectoryPanel>
       <form

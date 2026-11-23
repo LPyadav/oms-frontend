@@ -27,6 +27,17 @@ accepts both the wrapped and original Laravel health responses. Deploy
 
 ## Workflows
 
+Apply the filters, then select **Export CSV** on the relevant page.
+
+- **Orders** uses the applied search, filters and sort. It requires global order access.
+- **Order status report** uses the selected order date range, status, customer and assignee.
+- **Sales & Tax** uses the completion date range, customer and product. A product
+  filter includes the full totals of matching completed orders.
+
+Both report downloads require report access. Each CSV includes matching rows
+across all pages and allows up to 1,000 orders. Apply narrower filters if the
+result exceeds that limit.
+
 | Area                   | What to verify                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Authentication         | Sign in, restore on refresh, and return to an authorized deep link after expiry. Open the profile menu to change your password or sign out. Changing a password revokes all tokens and requires sign-in again.                                                      |

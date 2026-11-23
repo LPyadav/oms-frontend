@@ -5,6 +5,14 @@
   padding-block: clamp(17px, 2.8vw, 30px) 30px;
 }
 
+.report-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
 .report-header h1 {
   margin: 0;
   font-size: clamp(1.625rem, 3.4vw, 2.125rem);
