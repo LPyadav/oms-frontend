@@ -23,6 +23,8 @@ const requests = new AbortController()
 const {
   grants,
   catalog,
+  restrictionsUnavailable,
+  legacyRestrictedGrants,
   selectedPermissions,
   loading,
   saving,
@@ -30,10 +32,16 @@ const {
   saveError,
   reloadRequired,
   canEdit,
+  canChangePermission,
   canSave,
   load,
   save,
-} = useUserPermissions({ request: auth.request, userId: props.account.id, signal: requests.signal })
+} = useUserPermissions({
+  request: auth.request,
+  userId: props.account.id,
+  targetRoles: props.account.roles,
+  signal: requests.signal,
+})
 const groups = computed(() => groupPermissions(catalog.value))
 
 function close() {
@@ -140,6 +148,14 @@ onScopeDispose(() => requests.abort())
                     Clear direct grants
                   </VBtn>
                 </div>
+                <p v-if="restrictionsUnavailable">
+                  The catalog is missing its access rules. You can keep or remove existing direct
+                  grants.
+                </p>
+                <p v-else-if="legacyRestrictedGrants.size">
+                  You can keep or remove existing Admin-only grants. Once removed, they cannot be
+                  selected again.
+                </p>
                 <p v-if="!groups.length && !loadError">No permissions are available to grant.</p>
                 <details
                   v-for="([group, permissions], index) in groups"
@@ -159,7 +175,7 @@ onScopeDispose(() => requests.abort())
                     :value="permission"
                     :true-icon="aliases.checkboxOn"
                     :false-icon="aliases.checkboxOff"
-                    :disabled="!canEdit"
+                    :disabled="!canEdit || !canChangePermission(permission)"
                     color="primary"
                     density="compact"
                     hide-details

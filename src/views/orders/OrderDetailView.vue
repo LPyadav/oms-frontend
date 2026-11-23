@@ -7,6 +7,7 @@ import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
 import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
 import OrderAssigneeIdentity from '../../components/orders/OrderAssigneeIdentity.vue'
 import OrderAssignmentDialog from '../../components/orders/OrderAssignmentDialog.vue'
 import OrderDeleteDialog from '../../components/orders/OrderDeleteDialog.vue'
@@ -20,10 +21,11 @@ import {
   ORDER_PRIORITY,
   ORDER_STATUS,
 } from '../../constants/orders'
+import { DIRECTORY_PAGE_SIZE } from '../../constants/pagination'
 import { useAuthStore } from '../../stores/auth'
 import { canAddNoteToOrder, canChangeOrderAssignee } from '../../utils/orderActivityAccess'
 import { formatOrderDate, formatOrderTimestamp, formatOrderTotal } from '../../utils/orderDisplay'
-import { orderActivity, orderTimeline } from '../../utils/orderHistory'
+import { orderActivity, orderNotes, orderTimeline } from '../../utils/orderHistory'
 import { availableOrderStatuses } from '../../utils/orderLifecycle'
 
 const props = defineProps({
@@ -33,8 +35,12 @@ const props = defineProps({
 const auth = useAuthStore()
 const router = useRouter()
 const activeDialog = ref(null)
+const notesExpanded = ref(false)
+const activityExpanded = ref(true)
+const activityPage = ref(1)
 let dialogTrigger
 const heading = useTemplateRef('heading')
+const activityToggle = useTemplateRef('activityToggle')
 const controller = new AbortController()
 const { order, error, loading, load } = useOrderDetail({
   request: auth.request,
@@ -47,7 +53,15 @@ const canDelete = computed(() => auth.canDeleteOrders && isOrderDeletable(order.
 const canAssign = computed(() => canChangeOrderAssignee(order.value, auth))
 const canAddNote = computed(() => canAddNoteToOrder(order.value, auth))
 const timeline = computed(() => (order.value ? orderTimeline(order.value) : []))
+const notes = computed(() => (order.value ? orderNotes(order.value) : []))
 const activity = computed(() => (order.value ? orderActivity(order.value) : []))
+const lastActivityPage = computed(() =>
+  Math.max(1, Math.ceil(activity.value.length / DIRECTORY_PAGE_SIZE)),
+)
+const activityPageEntries = computed(() => {
+  const start = (activityPage.value - 1) * DIRECTORY_PAGE_SIZE
+  return activity.value.slice(start, start + DIRECTORY_PAGE_SIZE)
+})
 const errorMessage = computed(() => {
   if (error.value?.status === 403) return 'You do not have permission to view this order.'
   if (error.value?.status === 404) return 'This order is unavailable.'
@@ -55,6 +69,12 @@ const errorMessage = computed(() => {
   return 'Unable to load this order. Try again.'
 })
 const canRetry = computed(() => error.value && ![403, 404].includes(error.value.status))
+
+async function changeActivityPage(page) {
+  activityPage.value = page
+  await nextTick()
+  activityToggle.value?.$el.focus()
+}
 
 function openDialog(name, event) {
   dialogTrigger = event.currentTarget
@@ -109,12 +129,19 @@ function finishNote(orderId, note) {
   return closeDialog()
 }
 
+watch(lastActivityPage, (lastPage) => {
+  activityPage.value = Math.min(activityPage.value, lastPage)
+})
+
 watch(
   () => props.orderId,
   async (id) => {
     if (!auth.canViewOrders) return
     activeDialog.value = null
     dialogTrigger = null
+    notesExpanded.value = false
+    activityExpanded.value = true
+    activityPage.value = 1
     void load(id)
     await nextTick()
     heading.value?.focus({ preventScroll: true })
@@ -334,35 +361,98 @@ onScopeDispose(() => controller.abort())
 
       <VCard
         tag="section"
-        class="detail-panel"
+        class="detail-panel detail-disclosure"
+        variant="flat"
+        border
+        aria-labelledby="notes-heading"
+      >
+        <h2 id="notes-heading">
+          <VBtn
+            type="button"
+            block
+            variant="text"
+            class="text-none detail-disclosure-toggle"
+            :append-icon="notesExpanded ? aliases.collapse : aliases.expand"
+            :aria-expanded="notesExpanded"
+            aria-controls="order-notes"
+            @click="notesExpanded = !notesExpanded"
+          >
+            Notes
+          </VBtn>
+        </h2>
+        <div v-show="notesExpanded" id="order-notes" class="detail-disclosure-body">
+          <div v-if="canAddNote" class="notes-actions">
+            <VBtn
+              type="button"
+              color="primary"
+              variant="outlined"
+              class="text-none"
+              @click="openDialog('note', $event)"
+            >
+              Add note
+            </VBtn>
+          </div>
+          <p v-if="!notes.length" class="history-empty">No notes yet.</p>
+          <ol v-else class="detail-history-list" role="list">
+            <li v-for="note in notes" :key="note.id">
+              <div class="history-entry-header">
+                <h3>{{ note.author?.name ?? 'Unknown author' }}</h3>
+                <time :datetime="note.created_at">{{ formatOrderTimestamp(note.created_at) }}</time>
+              </div>
+              <p class="detail-body history-entry-body">{{ note.body }}</p>
+            </li>
+          </ol>
+        </div>
+      </VCard>
+
+      <VCard
+        tag="section"
+        class="detail-panel detail-disclosure"
         variant="flat"
         border
         aria-labelledby="activity-heading"
       >
-        <div class="activity-heading">
-          <h2 id="activity-heading">Activity</h2>
+        <h2 id="activity-heading">
           <VBtn
-            v-if="canAddNote"
-            color="primary"
-            variant="outlined"
-            class="text-none"
-            @click="openDialog('note', $event)"
+            ref="activityToggle"
+            type="button"
+            block
+            variant="text"
+            class="text-none detail-disclosure-toggle"
+            :append-icon="activityExpanded ? aliases.collapse : aliases.expand"
+            :aria-expanded="activityExpanded"
+            aria-controls="order-activity"
+            @click="activityExpanded = !activityExpanded"
           >
-            Add note
+            Activity
           </VBtn>
+        </h2>
+        <div v-show="activityExpanded" id="order-activity" class="detail-disclosure-body">
+          <p v-if="!activity.length" class="history-empty">No activity recorded.</p>
+          <ol v-else class="detail-history-list" role="list">
+            <li v-for="event in activityPageEntries" :key="event.key">
+              <div class="history-entry-header">
+                <VChip label size="x-small" variant="tonal" color="primary">{{ event.type }}</VChip>
+                <h3>{{ event.title }}</h3>
+                <time :datetime="event.at">{{ formatOrderTimestamp(event.at) }}</time>
+              </div>
+              <p class="history-entry-actor">{{ event.actor }}</p>
+              <p v-if="event.body" class="detail-body history-entry-body">{{ event.body }}</p>
+            </li>
+          </ol>
+          <DirectoryPagination
+            v-if="lastActivityPage > 1"
+            :current-page="activityPage"
+            :last-page="lastActivityPage"
+            label="Activity pages"
+            previous-label="Previous activity page"
+            next-label="Next activity page"
+            class="activity-pages"
+            @page-change="changeActivityPage"
+          >
+            <span aria-live="polite">Page {{ activityPage }} of {{ lastActivityPage }}</span>
+          </DirectoryPagination>
         </div>
-        <p v-if="!activity.length" class="activity-empty">No activity recorded.</p>
-        <ol v-else class="detail-activity" role="list">
-          <li v-for="event in activity" :key="event.key">
-            <div class="activity-header">
-              <VChip label size="x-small" variant="tonal" color="primary">{{ event.type }}</VChip>
-              <h3>{{ event.title }}</h3>
-              <time :datetime="event.at">{{ formatOrderTimestamp(event.at) }}</time>
-            </div>
-            <p class="activity-actor">{{ event.actor }}</p>
-            <p v-if="event.body" class="detail-body activity-body">{{ event.body }}</p>
-          </li>
-        </ol>
       </VCard>
     </template>
   </section>
@@ -444,9 +534,9 @@ onScopeDispose(() => controller.abort())
 .detail-fields dt,
 .detail-timeline time,
 .detail-timeline span,
-.activity-header time,
-.activity-actor,
-.activity-empty {
+.history-entry-header time,
+.history-entry-actor,
+.history-empty {
   color: rgba(var(--v-theme-on-surface), 0.77);
   font-size: 0.8125rem;
 }
@@ -477,14 +567,14 @@ onScopeDispose(() => controller.abort())
 
 .detail-state p,
 .detail-timeline p,
-.activity-empty,
-.activity-actor,
-.activity-body {
+.history-empty,
+.history-entry-actor,
+.history-entry-body {
   margin: 0;
 }
 
 .detail-timeline,
-.detail-activity {
+.detail-history-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -530,41 +620,71 @@ onScopeDispose(() => controller.abort())
   font-weight: 500;
 }
 
-.detail-activity li {
+.detail-history-list li {
   padding-block: 14px;
   border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   overflow-wrap: anywhere;
 }
 
-.detail-activity li:last-child {
+.detail-history-list li:last-child {
   padding-bottom: 0;
 }
 
-.activity-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-bottom: 14px;
+.detail-disclosure {
+  padding: 0;
 }
 
-.detail-panel .activity-heading h2 {
+.detail-disclosure h2 {
   margin: 0;
 }
 
-.activity-header {
+.detail-disclosure-toggle {
+  justify-content: space-between;
+  min-height: 54px;
+  padding-inline: 18px;
+  font: inherit;
+  font-weight: 700;
+  letter-spacing: normal;
+}
+
+.detail-disclosure-toggle:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: -3px;
+}
+
+.detail-disclosure-body {
+  padding: 0 18px 18px;
+}
+
+.notes-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+.activity-pages {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+  color: rgba(var(--v-theme-on-surface), 0.77);
+  font-size: 0.8125rem;
+}
+
+.history-entry-header {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px 10px;
 }
 
-.activity-header h3 {
+.history-entry-header h3 {
   font-size: 0.9375rem;
 }
 
-.activity-header time {
+.history-entry-header time {
   margin-inline-start: auto;
 }
 
@@ -573,8 +693,8 @@ onScopeDispose(() => controller.abort())
   white-space: pre-wrap;
 }
 
-.activity-actor,
-.activity-body {
+.history-entry-actor,
+.history-entry-body {
   margin-top: 5px;
 }
 
@@ -594,7 +714,7 @@ onScopeDispose(() => controller.abort())
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .activity-header time {
+  .history-entry-header time {
     flex-basis: 100%;
     margin-inline-start: 0;
   }
