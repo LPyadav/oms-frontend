@@ -7,6 +7,7 @@ import { loadAccessAuditLog } from '../../api/accessAudit'
 import DirectoryState from '../directory/DirectoryState.vue'
 import { useAuthStore } from '../../stores/auth'
 import { formatAccessAuditAction, formatAccessAuditTime } from '../../utils/accessAudit'
+import { formatAuditActor } from '../../utils/auditActor'
 
 const props = defineProps({ id: { type: Number, required: true } })
 const emit = defineEmits(['close'])
@@ -104,7 +105,7 @@ onScopeDispose(() => requests.abort())
             </div>
             <div>
               <dt>Actor</dt>
-              <dd>User #{{ log.actor_id }}</dd>
+              <dd>{{ formatAuditActor(log) }}</dd>
             </div>
             <div>
               <dt>Target</dt>

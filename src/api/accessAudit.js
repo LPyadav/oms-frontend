@@ -10,6 +10,7 @@ function isAuditLog(log) {
   return (
     isId(log?.id) &&
     isId(log.actor_id) &&
+    (log.actor_email == null || typeof log.actor_email === 'string') &&
     auditTargets.has(log.target_type) &&
     isId(log.target_id) &&
     typeof log.action === 'string' &&

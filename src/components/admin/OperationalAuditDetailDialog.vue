@@ -5,6 +5,7 @@ import { VCard } from 'vuetify/components/VCard'
 import { VDialog } from 'vuetify/components/VDialog'
 import { loadOperationalAuditLog } from '../../api/operationalAudit'
 import { useAuthStore } from '../../stores/auth'
+import { formatAuditActor } from '../../utils/auditActor'
 import {
   formatOperationalAuditAction,
   formatOperationalAuditTime,
@@ -90,7 +91,7 @@ onScopeDispose(() => requests.abort())
             </div>
             <div>
               <dt>Actor</dt>
-              <dd>{{ log.actor_name ?? 'User' }} #{{ log.actor_id }}</dd>
+              <dd>{{ formatAuditActor(log, log.actor_name) }}</dd>
             </div>
             <div>
               <dt>Target</dt>
