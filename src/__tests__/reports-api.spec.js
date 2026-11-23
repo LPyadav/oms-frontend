@@ -229,7 +229,7 @@ it.each([
       customer_id: '8',
       ...expected,
     })
-    expect(options).toEqual({ responseType: 'blob', signal })
+    expect(options).toEqual({ responseType: 'blob', signal, timeoutMs: 240_000 })
   },
 )
 

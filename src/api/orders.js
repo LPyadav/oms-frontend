@@ -4,7 +4,7 @@ import {
   ORDER_PRIORITY,
   ORDER_STATUS,
 } from '../constants/orders'
-import { isCsvBlob } from '../utils/csv'
+import { CSV_EXPORT_TIMEOUT_MS, isCsvBlob } from '../utils/csv'
 import { ApiError } from './client'
 import { createPageParams, readPaginatedResource } from './pagination'
 
@@ -77,7 +77,11 @@ export async function loadOrderPage(request, query, signal) {
 
 export async function loadOrdersCsv(request, query, signal) {
   const params = orderSearchParams(query)
-  const csv = await request(`/api/orders/export?${params}`, { responseType: 'blob', signal })
+  const csv = await request(`/api/orders/export?${params}`, {
+    responseType: 'blob',
+    signal,
+    timeoutMs: CSV_EXPORT_TIMEOUT_MS,
+  })
   if (!isCsvBlob(csv)) {
     throw new ApiError('The server returned an invalid order export.', { code: 'INVALID_RESPONSE' })
   }

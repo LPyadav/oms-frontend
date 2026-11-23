@@ -37,8 +37,9 @@ Apply the filters, then select **Export CSV** on the relevant page.
   filter includes the full totals of matching completed orders.
 
 Both report downloads require report access. Each CSV includes matching rows
-across all pages and allows up to 1,000 orders. Apply narrower filters if the
-result exceeds that limit.
+across all pages. The backend allows up to 50,000 matching orders per CSV by
+default and configures the limits for Orders and report exports separately.
+Apply narrower filters if the result exceeds the configured limit.
 
 | Area                   | What to verify                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -80,6 +81,7 @@ results. Verify loading, empty, retry, and permission-denied paths.
   policies and query scopes enforce permissions even when controls are hidden.
 - **API client** handles the response envelope, cancellation, and a default
   10-second timeout. A caller can supply a positive-integer `timeoutMs`.
+  CSV downloads allow up to four minutes.
   See the backend [OpenAPI contract](https://github.com/LPyadav/oms-backend/blob/main/docs/openapi.yaml).
 - **Session storage** keeps a bearer token across refreshes in the same tab.
   Same-origin JavaScript can read it, so an XSS defect could expose it until
