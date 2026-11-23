@@ -1,14 +1,16 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { VBadge } from 'vuetify/components/VBadge'
 import { VBtn } from 'vuetify/components/VBtn'
-import { loadUnreadNotificationCount } from '../../api/notifications'
 import { useAuthStore } from '../../stores/auth'
+import { useNotificationBadgeStore } from '../../stores/notificationBadge'
 
 const auth = useAuthStore()
 const route = useRoute()
-const unreadCount = ref(null)
+const badge = useNotificationBadgeStore()
+const { unreadCount } = storeToRefs(badge)
 const badgeCount = computed(() => (unreadCount.value > 99 ? '99+' : unreadCount.value))
 const label = computed(() =>
   unreadCount.value === null ? 'Notifications' : 'Notifications, ' + unreadCount.value + ' unread',
@@ -16,19 +18,7 @@ const label = computed(() =>
 
 watch(
   [() => auth.user?.id, () => route.name === 'notifications'],
-  async ([userId], _, onCleanup) => {
-    unreadCount.value = null
-    if (!userId) return
-
-    const controller = new AbortController()
-    onCleanup(() => controller.abort())
-    try {
-      const count = await loadUnreadNotificationCount(auth.request, controller.signal)
-      if (!controller.signal.aborted) unreadCount.value = count
-    } catch {
-      // The inbox remains available when the unread count cannot be loaded.
-    }
-  },
+  () => void badge.refreshUnreadCount(),
   { immediate: true },
 )
 </script>

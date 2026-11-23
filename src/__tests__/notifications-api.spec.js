@@ -1,6 +1,11 @@
 import { expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
-import { loadNotificationPage, loadUnreadNotificationCount } from '../api/notifications'
+import {
+  loadNotificationPage,
+  loadUnreadNotificationCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../api/notifications'
 
 const unreadNotification = {
   id: 17,
@@ -135,4 +140,77 @@ it('lets both failures from the shared authenticated client reach the caller', a
 
   await expect(loadNotificationPage(request, firstPage, signal)).rejects.toBe(failure)
   await expect(loadUnreadNotificationCount(request, signal)).rejects.toBe(failure)
+})
+
+it('patches a notification and returns the server record including its original read time', async () => {
+  const request = vi.fn().mockResolvedValue({ data: { notification: readNotification } })
+  const { signal } = new AbortController()
+
+  await expect(markNotificationRead(request, readNotification.id, signal)).resolves.toEqual(
+    readNotification,
+  )
+  expect(request).toHaveBeenCalledExactlyOnceWith('/api/notifications/18/read', {
+    method: 'PATCH',
+    signal,
+  })
+})
+
+it.each([0, '18', Number.MAX_SAFE_INTEGER + 1])(
+  'rejects an invalid notification ID (%j)',
+  async (id) => {
+    const request = vi.fn()
+    const { signal } = new AbortController()
+
+    await expect(markNotificationRead(request, id, signal)).rejects.toMatchObject({
+      code: 'INVALID_RESPONSE',
+    })
+    expect(request).not.toHaveBeenCalled()
+  },
+)
+
+it.each([
+  ['no notification record', undefined],
+  ['an unread notification', { ...readNotification, read_at: null }],
+  ['an invalid read time', { ...readNotification, read_at: 'soon' }],
+  ['a different notification ID', { ...readNotification, id: readNotification.id + 1 }],
+])('rejects a mark-read response with %s', async (_, notification) => {
+  const request = vi.fn().mockResolvedValue({ data: { notification } })
+  const { signal } = new AbortController()
+
+  await expect(markNotificationRead(request, readNotification.id, signal)).rejects.toMatchObject({
+    code: 'INVALID_RESPONSE',
+  })
+})
+
+it.each([0, 12])('returns the mark-all count %i and forwards the abort signal', async (count) => {
+  const request = vi.fn().mockResolvedValue({ data: { marked_count: count } })
+  const { signal } = new AbortController()
+
+  await expect(markAllNotificationsRead(request, signal)).resolves.toBe(count)
+  expect(request).toHaveBeenCalledExactlyOnceWith('/api/notifications/read-all', {
+    method: 'PATCH',
+    signal,
+  })
+})
+
+it.each([undefined, null, '2', -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
+  'rejects an invalid mark-all count (%j)',
+  async (count) => {
+    const request = vi.fn().mockResolvedValue({ data: { marked_count: count } })
+    const { signal } = new AbortController()
+
+    await expect(markAllNotificationsRead(request, signal)).rejects.toMatchObject({
+      code: 'INVALID_RESPONSE',
+    })
+  },
+)
+
+it('preserves the shared API errors so the inbox can recover from stale access or rate limits', async () => {
+  const missing = new ApiError('Notification not found.', { status: 404 })
+  const limited = new ApiError('Too many requests.', { status: 429, retryAfter: '10' })
+  const request = vi.fn().mockRejectedValueOnce(missing).mockRejectedValueOnce(limited)
+  const { signal } = new AbortController()
+
+  await expect(markNotificationRead(request, readNotification.id, signal)).rejects.toBe(missing)
+  await expect(markAllNotificationsRead(request, signal)).rejects.toBe(limited)
 })

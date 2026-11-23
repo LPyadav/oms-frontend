@@ -54,3 +54,38 @@ export async function loadUnreadNotificationCount(request, signal) {
 
   return count
 }
+
+export async function markNotificationRead(request, notificationId, signal) {
+  if (!isPositiveInteger(notificationId)) {
+    throw new ApiError('The notification ID is invalid.', { code: 'INVALID_RESPONSE' })
+  }
+
+  const response = await request(`${notificationsPath}/${notificationId}/read`, {
+    method: 'PATCH',
+    signal,
+  })
+  const notification = response?.data?.notification
+  if (
+    !isNotification(notification) ||
+    notification.id !== notificationId ||
+    notification.read_at === null
+  ) {
+    throw new ApiError('The server returned an invalid read notification.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+
+  return notification
+}
+
+export async function markAllNotificationsRead(request, signal) {
+  const response = await request(`${notificationsPath}/read-all`, { method: 'PATCH', signal })
+  const count = response?.data?.marked_count
+  if (!isNonNegativeInteger(count)) {
+    throw new ApiError('The server returned an invalid marked notifications count.', {
+      code: 'INVALID_RESPONSE',
+    })
+  }
+
+  return count
+}

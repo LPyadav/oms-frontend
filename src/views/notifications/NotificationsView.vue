@@ -1,5 +1,6 @@
 <script setup>
 import { computed, nextTick, onMounted, useTemplateRef } from 'vue'
+import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
@@ -27,7 +28,23 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 })
 
 const heading = useTemplateRef('heading')
-const { page, loading, error, status, load, setStatus, changePage } = useNotificationInbox()
+const retryButton = useTemplateRef('retryButton')
+const {
+  page,
+  loading,
+  error,
+  status,
+  load,
+  setStatus,
+  changePage,
+  pendingAction,
+  actionError,
+  actionNotice,
+  unreadCount,
+  markRead,
+  markAllRead,
+} = useNotificationInbox()
+const actionPending = computed(() => pendingAction.value !== null)
 const denied = computed(() => error.value?.status === 403)
 const errorMessage = computed(() =>
   denied.value
@@ -48,6 +65,29 @@ const notifications = computed(() =>
   }),
 )
 
+const canMarkAllRead = computed(() =>
+  unreadCount.value === null ? page.value !== null && error.value === null : unreadCount.value > 0,
+)
+
+async function performActionWithFocus(event, action, fallback = () => heading.value) {
+  const trigger = event.currentTarget
+  const result = await action()
+  await nextTick()
+
+  const active = document.activeElement
+  if (active && active !== document.body && active !== trigger) return
+
+  const target = trigger?.isConnected && !trigger.disabled ? trigger : fallback(result)
+  target?.focus({ preventScroll: true })
+}
+
+function retryInbox(event) {
+  return performActionWithFocus(event, load, (result) => {
+    if (result) return heading.value
+    if (error.value) return retryButton.value?.$el ?? heading.value
+  })
+}
+
 async function goToPage(number) {
   if (!(await changePage(number))) return
   await nextTick()
@@ -67,19 +107,43 @@ onMounted(() => {
     </header>
 
     <VCard color="surface" variant="flat" border class="notification-card">
-      <div class="notification-filters" role="group" aria-label="Filter notifications">
+      <div class="notification-toolbar">
+        <div class="notification-filters" role="group" aria-label="Filter notifications">
+          <VBtn
+            v-for="filter in filters"
+            :key="filter.label"
+            type="button"
+            class="text-none"
+            :variant="status === filter.value ? 'tonal' : 'text'"
+            :color="status === filter.value ? 'primary' : undefined"
+            :aria-pressed="status === filter.value"
+            :disabled="actionPending"
+            @click="setStatus(filter.value)"
+          >
+            {{ filter.label }}
+          </VBtn>
+        </div>
         <VBtn
-          v-for="filter in filters"
-          :key="filter.label"
           type="button"
           class="text-none"
-          :variant="status === filter.value ? 'tonal' : 'text'"
-          :color="status === filter.value ? 'primary' : undefined"
-          :aria-pressed="status === filter.value"
-          @click="setStatus(filter.value)"
+          color="primary"
+          variant="outlined"
+          :loading="pendingAction === 'all'"
+          :aria-busy="pendingAction === 'all'"
+          :disabled="loading || actionPending || !canMarkAllRead"
+          @click="performActionWithFocus($event, markAllRead)"
         >
-          {{ filter.label }}
+          Mark all as read
         </VBtn>
+      </div>
+
+      <div v-if="actionError || actionNotice" class="notification-feedback">
+        <VAlert v-if="actionError" type="error" variant="tonal" :icon="false" role="alert">
+          {{ actionError }}
+        </VAlert>
+        <VAlert v-else color="primary" variant="tonal" :icon="false" role="status">
+          {{ actionNotice }}
+        </VAlert>
       </div>
 
       <DirectoryState
@@ -98,7 +162,15 @@ onMounted(() => {
           <VBtn v-if="denied" :to="{ name: 'workspace' }" variant="outlined" class="text-none">
             Back to workspace
           </VBtn>
-          <VBtn v-else type="button" variant="outlined" class="text-none" @click="load()">
+          <VBtn
+            v-else
+            ref="retryButton"
+            type="button"
+            variant="outlined"
+            class="text-none"
+            :disabled="actionPending"
+            @click="retryInbox"
+          >
             Try again
           </VBtn>
         </template>
@@ -115,6 +187,7 @@ onMounted(() => {
               type="button"
               variant="outlined"
               class="text-none"
+              :disabled="actionPending"
               @click="goToPage(page.lastPage)"
             >
               Go to last page
@@ -152,19 +225,40 @@ onMounted(() => {
                   </VChip>
                 </div>
               </div>
-              <VBtn
-                :to="{
-                  name: 'order-detail',
-                  params: { orderId: String(notification.order_id) },
-                }"
-                :aria-label="'View order ' + notification.order_number"
-                :append-icon="aliases.next"
-                color="primary"
-                variant="text"
-                class="notification-link text-none"
-              >
-                View order
-              </VBtn>
+              <div class="notification-actions">
+                <VBtn
+                  v-if="!notification.read_at"
+                  type="button"
+                  :aria-label="
+                    'Mark as read for order ' +
+                    notification.order_number +
+                    ' (' +
+                    notification.title +
+                    ')'
+                  "
+                  :loading="pendingAction === notification.id"
+                  :aria-busy="pendingAction === notification.id"
+                  :disabled="actionPending"
+                  variant="text"
+                  class="text-none"
+                  @click="performActionWithFocus($event, () => markRead(notification.id))"
+                >
+                  Mark as read
+                </VBtn>
+                <VBtn
+                  :to="{
+                    name: 'order-detail',
+                    params: { orderId: String(notification.order_id) },
+                  }"
+                  :aria-label="'View order ' + notification.order_number"
+                  :append-icon="aliases.next"
+                  color="primary"
+                  variant="text"
+                  class="text-none"
+                >
+                  View order
+                </VBtn>
+              </div>
             </li>
           </ul>
           <footer class="notification-footer">
@@ -179,6 +273,7 @@ onMounted(() => {
               :prev-icon="aliases.prev"
               :next-icon="aliases.next"
               density="comfortable"
+              :disabled="actionPending"
               aria-label="Notification pages"
               @update:model-value="goToPage"
             />
@@ -217,17 +312,33 @@ onMounted(() => {
   box-shadow: 0 2px 7px rgba(var(--v-theme-on-surface), 0.045);
 }
 
-.notification-filters {
+.notification-toolbar,
+.notification-filters,
+.notification-actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+}
+
+.notification-toolbar {
+  justify-content: space-between;
   padding: 12px 16px;
   border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
-.notification-filters .v-btn,
-.notification-link {
+.notification-actions {
+  justify-content: flex-end;
+}
+
+.notification-toolbar .v-btn,
+.notification-actions .v-btn {
   min-block-size: 44px;
+}
+
+.notification-feedback {
+  padding: 12px 16px;
+  border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .notification-state {
@@ -304,9 +415,9 @@ onMounted(() => {
     row-gap: 6px;
   }
 
-  .notification-link {
+  .notification-actions {
     grid-column: 2;
-    justify-self: start;
+    justify-content: flex-start;
   }
 }
 </style>
