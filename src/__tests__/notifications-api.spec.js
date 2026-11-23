@@ -52,7 +52,10 @@ it('loads all statuses and preserves the server fields, ordering, and future eve
     perPage: 25,
     total: 3,
   })
-  expect(request).toHaveBeenCalledExactlyOnceWith('/api/notifications?page=1', { signal })
+  expect(request).toHaveBeenCalledExactlyOnceWith('/api/notifications?page=1', {
+    signal,
+    timeoutMs: 30_000,
+  })
 })
 
 it.each([
@@ -75,6 +78,7 @@ it.each([
   })
   expect(request).toHaveBeenCalledExactlyOnceWith(`/api/notifications?page=2&status=${status}`, {
     signal,
+    timeoutMs: 30_000,
   })
 })
 
@@ -118,7 +122,10 @@ it.each([0, 12])('returns the unread count %i and forwards the abort signal', as
   const { signal } = new AbortController()
 
   await expect(loadUnreadNotificationCount(request, signal)).resolves.toBe(count)
-  expect(request).toHaveBeenCalledExactlyOnceWith('/api/notifications/unread-count', { signal })
+  expect(request).toHaveBeenCalledExactlyOnceWith('/api/notifications/unread-count', {
+    signal,
+    timeoutMs: 30_000,
+  })
 })
 
 it.each([undefined, null, '2', -1, 1.5, Number.MAX_SAFE_INTEGER + 1])(

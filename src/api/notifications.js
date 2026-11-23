@@ -1,3 +1,4 @@
+import { NOTIFICATION_READ_TIMEOUT_MS } from '../constants/notifications'
 import { ApiError } from './client'
 import { createPageParams, readPaginatedResource } from './pagination'
 
@@ -34,7 +35,10 @@ export async function loadNotificationPage(request, { page, perPage, status = nu
   const params = createPageParams(page, perPage)
   if (status !== null) params.set('status', status)
 
-  const response = await request(`${notificationsPath}?${params}`, { signal })
+  const response = await request(`${notificationsPath}?${params}`, {
+    signal,
+    timeoutMs: NOTIFICATION_READ_TIMEOUT_MS,
+  })
   return readPaginatedResource(response, {
     resource: 'notifications',
     isEntry: isNotification,
@@ -44,7 +48,10 @@ export async function loadNotificationPage(request, { page, perPage, status = nu
 }
 
 export async function loadUnreadNotificationCount(request, signal) {
-  const response = await request(`${notificationsPath}/unread-count`, { signal })
+  const response = await request(`${notificationsPath}/unread-count`, {
+    signal,
+    timeoutMs: NOTIFICATION_READ_TIMEOUT_MS,
+  })
   const count = response?.data?.unread_count
   if (!isNonNegativeInteger(count)) {
     throw new ApiError('The server returned an invalid unread notifications count.', {

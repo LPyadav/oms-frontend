@@ -1,10 +1,12 @@
 <script setup>
+import { storeToRefs } from 'pinia'
 import { computed, ref, useTemplateRef, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useDisplay } from 'vuetify'
 import { VAppBar } from 'vuetify/components/VAppBar'
 import { VAvatar } from 'vuetify/components/VAvatar'
 import { VBtn } from 'vuetify/components/VBtn'
+import { VChip } from 'vuetify/components/VChip'
 import { VIcon } from 'vuetify/components/VIcon'
 import { VLayout } from 'vuetify/components/VLayout'
 import { VList, VListGroup, VListItem } from 'vuetify/components/VList'
@@ -13,8 +15,10 @@ import { VNavigationDrawer } from 'vuetify/components/VNavigationDrawer'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import AccountMenu from '../components/auth/AccountMenu.vue'
 import NotificationBell from '../components/notifications/NotificationBell.vue'
+import { NOTIFICATION_BELL_PATH } from '../constants/notifications'
 import { REPORT_TITLE } from '../constants/reports'
 import { useAuthStore } from '../stores/auth'
+import { useNotificationBadgeStore } from '../stores/notificationBadge'
 
 const navigationIcons = {
   dashboard: ['M3.5 3.5h6v9h-6zM14.5 3.5h6v5h-6zM3.5 16.5h6v4h-6zM14.5 12.5h6v8h-6z'],
@@ -22,6 +26,7 @@ const navigationIcons = {
     'M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3',
     'M9 3h6v4H9zM8 12h8m-8 4h8',
   ],
+  notifications: [NOTIFICATION_BELL_PATH],
   reports: ['M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21z', 'm9 15 6-6M9 9h.01M15 15h.01'],
   users: [
     'M12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
@@ -41,6 +46,11 @@ const navigationIcons = {
 }
 
 const auth = useAuthStore()
+const {
+  unreadCount,
+  badgeCount,
+  label: notificationsLabel,
+} = storeToRefs(useNotificationBadgeStore())
 const route = useRoute()
 const { mdAndUp } = useDisplay()
 const mobileNavigationOpen = ref(false)
@@ -147,12 +157,33 @@ function focusMain() {
         <VListItem
           v-if="auth.canViewOrders"
           :to="{ name: 'orders' }"
-          :active="route.meta.requiresOrderView === true"
+          :active="route.meta.requiresOrderView === true && route.name !== 'notifications'"
           :prepend-icon="navigationIcons.orders"
           title="Orders"
           rounded="lg"
           @click="mobileNavigationOpen = false"
         />
+        <VListItem
+          v-if="auth.canViewOrders"
+          :to="{ name: 'notifications' }"
+          :prepend-icon="navigationIcons.notifications"
+          :aria-label="notificationsLabel"
+          title="Notifications"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        >
+          <template #append>
+            <VChip
+              v-if="unreadCount > 0"
+              color="primary"
+              variant="flat"
+              size="small"
+              aria-hidden="true"
+            >
+              {{ badgeCount }}
+            </VChip>
+          </template>
+        </VListItem>
         <VListGroup
           v-if="auth.canViewReports"
           value="reports"

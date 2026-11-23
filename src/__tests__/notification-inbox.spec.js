@@ -140,6 +140,57 @@ describe('notification read actions', () => {
   })
 })
 
+it('keeps the shared badge visible during a refresh and after a transient count failure', async () => {
+  const pending = Promise.withResolvers()
+  request
+    .mockResolvedValueOnce(count(104))
+    .mockReturnValueOnce(pending.promise)
+    .mockResolvedValueOnce(count(0))
+  const badge = useNotificationBadgeStore()
+  await badge.refreshUnreadCount()
+
+  const refreshing = badge.refreshUnreadCount()
+  expect(badge.badgeCount).toBe('99+')
+  expect(badge.label).toBe('Notifications, 104 unread')
+
+  pending.reject(new ApiError('Temporarily unavailable', { status: 503 }))
+  await refreshing
+  expect(badge.unreadCount).toBe(104)
+
+  await badge.refreshUnreadCount()
+  expect(badge.unreadCount).toBe(0)
+  expect(badge.label).toBe('Notifications, 0 unread')
+})
+
+it('keeps an in-flight count request when a background refresh is scheduled', async () => {
+  const pending = Promise.withResolvers()
+  request.mockReturnValueOnce(pending.promise)
+  const badge = useNotificationBadgeStore()
+  const refreshing = badge.refreshUnreadCount()
+
+  await badge.refreshUnreadCount({ background: true })
+
+  expect(request).toHaveBeenCalledOnce()
+  expect(request.mock.calls[0][1].signal.aborted).toBe(false)
+  pending.resolve(count(2))
+  await refreshing
+  expect(badge.unreadCount).toBe(2)
+})
+
+it('clears the badge if the server denies access to the count', async () => {
+  request
+    .mockResolvedValueOnce(count(3))
+    .mockRejectedValueOnce(new ApiError('Forbidden', { status: 403 }))
+  const badge = useNotificationBadgeStore()
+  await badge.refreshUnreadCount()
+
+  expect(badge.unreadCount).toBe(3)
+  await badge.refreshUnreadCount()
+
+  expect(badge.unreadCount).toBeNull()
+  expect(badge.label).toBe('Notifications')
+})
+
 it('discards an old account badge response after the viewer changes', async () => {
   const older = Promise.withResolvers()
   request.mockReturnValueOnce(older.promise).mockResolvedValueOnce(count(2))

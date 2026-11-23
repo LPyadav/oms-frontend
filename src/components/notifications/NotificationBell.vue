@@ -1,20 +1,32 @@
 <script setup>
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { VBadge } from 'vuetify/components/VBadge'
 import { VBtn } from 'vuetify/components/VBtn'
+import { NOTIFICATION_BELL_PATH, UNREAD_COUNT_REFRESH_MS } from '../../constants/notifications'
 import { useAuthStore } from '../../stores/auth'
 import { useNotificationBadgeStore } from '../../stores/notificationBadge'
 
 const auth = useAuthStore()
 const route = useRoute()
 const badge = useNotificationBadgeStore()
-const { unreadCount } = storeToRefs(badge)
-const badgeCount = computed(() => (unreadCount.value > 99 ? '99+' : unreadCount.value))
-const label = computed(() =>
-  unreadCount.value === null ? 'Notifications' : 'Notifications, ' + unreadCount.value + ' unread',
-)
+const { unreadCount, badgeCount, label } = storeToRefs(badge)
+let refreshTimer
+
+function refreshWhenVisible() {
+  if (document.visibilityState === 'visible') void badge.refreshUnreadCount({ background: true })
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+  refreshTimer = window.setInterval(refreshWhenVisible, UNREAD_COUNT_REFRESH_MS)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
+  window.clearInterval(refreshTimer)
+})
 
 watch(
   [() => auth.user?.id, () => route.name === 'notifications'],
@@ -45,7 +57,7 @@ watch(
         stroke-linejoin="round"
         aria-hidden="true"
       >
-        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+        <path :d="NOTIFICATION_BELL_PATH" />
       </svg>
     </VBtn>
   </VBadge>
