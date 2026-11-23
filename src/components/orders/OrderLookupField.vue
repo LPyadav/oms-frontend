@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { computed, onDeactivated, onScopeDispose, ref, shallowRef, watch } from 'vue'
 import { VAutocomplete } from 'vuetify/components/VAutocomplete'
 import { VListItem } from 'vuetify/components/VList'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
@@ -30,6 +30,12 @@ const items = computed(() => {
   return choice && !entries.some(({ id }) => id === choice.id) ? [choice, ...entries] : entries
 })
 
+const noDataText = computed(() => {
+  if (loading.value) return 'Searching…'
+  if (error.value) return 'Unable to load results.'
+  return page.value < lastPage.value ? 'No matches on this page.' : 'No matches found.'
+})
+
 function searchTerm() {
   const text = (search.value ?? '').trim()
   return selected.value && text === props.itemTitle(selected.value) ? '' : text.slice(0, 255)
@@ -52,8 +58,10 @@ async function fetchPage(nextPage) {
     const result = await props.loadPage({ page: nextPage, search: searchTerm() }, controller.signal)
     if (controller.signal.aborted) return
 
-    options.value =
+    const entries =
       nextPage === 1 ? result[props.resource] : [...options.value, ...result[props.resource]]
+    const byId = new Map(entries.map((entry) => [entry.id, entry]))
+    options.value = [...byId.values()]
     page.value = nextPage
     lastPage.value = result.lastPage
   } catch (failure) {
@@ -79,6 +87,10 @@ function restart() {
 }
 
 watch([open, search], restart)
+onDeactivated(() => {
+  open.value = false
+  cancel()
+})
 onScopeDispose(cancel)
 </script>
 
@@ -94,7 +106,7 @@ onScopeDispose(cancel)
     :loading="loading"
     :disabled="disabled"
     :error-messages="errorMessages"
-    :no-data-text="loading ? 'Searching…' : error ? 'Unable to load results.' : 'No matches found.'"
+    :no-data-text="noDataText"
     :menu-props="{ maxHeight: 320 }"
     :menu-icon="aliases.dropdown"
     :clear-icon="aliases.clear"

@@ -15,7 +15,7 @@ import { MAX_ORDER_NOTE_LENGTH } from '../../utils/orderDraft'
 import { availableOrderStatuses } from '../../utils/orderLifecycle'
 
 const props = defineProps({ order: { type: Object, required: true } })
-const emit = defineEmits(['close', 'refreshed', 'changed'])
+const emit = defineEmits(['close', 'refreshed', 'changed', 'unavailable'])
 const auth = useAuthStore()
 const controller = new AbortController()
 const snapshot = shallowRef(props.order)
@@ -28,9 +28,12 @@ const feedback = ref(null)
 const pending = ref(false)
 const reloading = ref(false)
 const reloadRequired = ref(false)
+const writeDenied = ref(false)
 const busy = computed(() => pending.value || reloading.value)
 
-const statuses = computed(() => availableOrderStatuses(snapshot.value, auth))
+const statuses = computed(() =>
+  writeDenied.value ? [] : availableOrderStatuses(snapshot.value, auth),
+)
 const options = computed(() =>
   statuses.value.map((status) => ({ title: ORDER_STATUS[status], value: status })),
 )
@@ -81,9 +84,12 @@ function showFailure(error) {
     if (!Object.keys(error.fields).length) {
       feedback.value = { type: 'error', message: 'The status change could not be validated.' }
     }
-  } else if (error.status === 403 || error.status === 404) {
+  } else if (error.status === 404) {
+    emit('unavailable')
+  } else if (error.status === 403) {
+    writeDenied.value = true
     requireReload(
-      'This order is unavailable for status changes. Reload to check its current state.',
+      'You cannot change this order’s status. Reload to check whether you can still view it.',
     )
   } else if (error.status === 429 || (error.status === 503 && error.code === 'WRITE_CONTENTION')) {
     const message =
@@ -145,16 +151,13 @@ async function reloadOrder() {
       type: 'info',
       message: statuses.value.length
         ? 'Latest order loaded. Choose a status to continue.'
-        : 'There are no status changes available for the latest order.',
+        : 'Latest order loaded. Status changes are unavailable.',
     }
     emit('refreshed', latest)
   } catch (error) {
-    if (!controller.signal.aborted && error.status !== 401) {
-      const message = [403, 404].includes(error.status)
-        ? 'The latest order is unavailable.'
-        : 'Unable to reload the order. Try again.'
-      feedback.value = { type: 'error', message }
-    }
+    if (controller.signal.aborted || error.status === 401) return
+    if ([403, 404].includes(error.status)) emit('unavailable', error)
+    else feedback.value = { type: 'error', message: 'Unable to reload the order. Try again.' }
   } finally {
     reloading.value = false
     await nextTick()

@@ -1,4 +1,9 @@
-import { MAX_TAX_RATE_BASIS_POINTS, ORDER_PRIORITY, ORDER_STATUS } from '../constants/orders'
+import {
+  FIRST_ORDER_PAGE,
+  MAX_TAX_RATE_BASIS_POINTS,
+  ORDER_PRIORITY,
+  ORDER_STATUS,
+} from '../constants/orders'
 import { ApiError } from './client'
 import { readPaginatedResource } from './pagination'
 
@@ -36,11 +41,24 @@ function isOrder(order) {
 }
 
 export async function loadOrderPage(request, query, signal) {
-  const { page, search, status, priority, dateFrom, dateTo, sort, direction } = query
+  const {
+    page,
+    search,
+    status,
+    priority,
+    customerId,
+    assigneeId,
+    dateFrom,
+    dateTo,
+    sort,
+    direction,
+  } = query
   const params = new URLSearchParams({ page: String(page), sort, direction })
   if (search) params.set('search', search)
   if (status) params.set('status', status)
   if (priority) params.set('priority', priority)
+  if (positiveInteger(customerId)) params.set('customer_id', String(customerId))
+  if (positiveInteger(assigneeId)) params.set('assignee_id', String(assigneeId))
   if (dateFrom) params.set('date_from', dateFrom)
   if (dateTo) params.set('date_to', dateTo)
 
@@ -51,6 +69,29 @@ export async function loadOrderPage(request, query, signal) {
     page,
     invalidMessage: 'The server returned an invalid order page.',
   })
+}
+
+function partySearchKey(value) {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+}
+
+export async function loadOrderFilterPartyPage(request, party, { page, search }, signal) {
+  const { orders, lastPage } = await loadOrderPage(
+    request,
+    { ...FIRST_ORDER_PAGE, page, search },
+    signal,
+  )
+  const term = partySearchKey(search ?? '')
+  const parties = new Map()
+
+  for (const order of orders) {
+    const choice = order[party]
+    if (choice && partySearchKey(choice.name).includes(term)) {
+      parties.set(choice.id, { id: choice.id, name: choice.name })
+    }
+  }
+
+  return { parties: [...parties.values()], lastPage }
 }
 
 const detailMoneyFields = ['subtotal_minor', 'discount_total_minor', 'tax_total_minor']

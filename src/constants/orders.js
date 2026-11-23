@@ -39,6 +39,8 @@ export const FIRST_ORDER_PAGE = Object.freeze({
   search: '',
   status: '',
   priority: '',
+  customerId: null,
+  assigneeId: null,
   dateFrom: '',
   dateTo: '',
   sort: 'order_date',

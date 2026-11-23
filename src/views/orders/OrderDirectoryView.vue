@@ -20,7 +20,8 @@ import { VSelect } from 'vuetify/components/VSelect'
 import { VTable } from 'vuetify/components/VTable'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
-import { loadOrderPage } from '../../api/orders'
+import { loadOrderFilterPartyPage, loadOrderPage } from '../../api/orders'
+import OrderLookupField from '../../components/orders/OrderLookupField.vue'
 import { usePagedDirectory } from '../../composables/usePagedDirectory'
 import { FIRST_ORDER_PAGE, ORDER_PRIORITY, ORDER_SORT, ORDER_STATUS } from '../../constants/orders'
 import { useAuthStore } from '../../stores/auth'
@@ -29,6 +30,12 @@ import { formatOrderDate, formatOrderTotal } from '../../utils/orderDisplay'
 const auth = useAuthStore()
 const heading = useTemplateRef('heading')
 const filters = reactive({ ...FIRST_ORDER_PAGE })
+const selectedParties = reactive({ customer: null, assignee: null })
+const draftQuery = computed(() => ({
+  ...filters,
+  customerId: selectedParties.customer?.id ?? null,
+  assigneeId: selectedParties.assignee?.id ?? null,
+}))
 const showFilters = ref(false)
 const requests = new AbortController()
 const { query, result, error, loading, load } = usePagedDirectory({
@@ -48,7 +55,13 @@ const statusColors = {
   completed: 'primary',
   cancelled: 'error',
 }
-const criteriaFields = ['status', 'priority', 'dateFrom', 'dateTo']
+const criteriaFields = ['status', 'priority', 'customerId', 'assigneeId', 'dateFrom', 'dateTo']
+const customerPage = (query, signal) =>
+  loadOrderFilterPartyPage(auth.request, 'customer', query, signal)
+const assigneePage = (query, signal) =>
+  loadOrderFilterPartyPage(auth.request, 'assignee', query, signal)
+const partyName = (party) => party.name
+const partySubtitle = (party) => 'ID ' + party.id
 const queryFields = Object.keys(FIRST_ORDER_PAGE).filter((field) => field !== 'page')
 let searchTimer
 
@@ -66,7 +79,8 @@ const filtered = computed(
 const canClear = computed(() =>
   queryFields.some(
     (field) =>
-      filters[field] !== FIRST_ORDER_PAGE[field] || query.value[field] !== FIRST_ORDER_PAGE[field],
+      draftQuery.value[field] !== FIRST_ORDER_PAGE[field] ||
+      query.value[field] !== FIRST_ORDER_PAGE[field],
   ),
 )
 const dateErrors = computed(() =>
@@ -95,11 +109,13 @@ function applyFilters() {
     showFilters.value = true
     return
   }
-  return load({ ...filters, page: 1, search: filters.search.trim() })
+  return load({ ...draftQuery.value, page: 1, search: filters.search.trim() })
 }
 
 async function clearFilters() {
   Object.assign(filters, FIRST_ORDER_PAGE)
+  selectedParties.customer = null
+  selectedParties.assignee = null
   if (await applyFilters()) heading.value?.focus({ preventScroll: true })
 }
 
@@ -205,6 +221,24 @@ onScopeDispose(() => {
             variant="outlined"
             density="comfortable"
             hide-details
+          />
+          <OrderLookupField
+            v-model="selectedParties.customer"
+            class="orders-party-filter"
+            label="Customer"
+            resource="parties"
+            :load-page="customerPage"
+            :item-title="partyName"
+            :item-subtitle="partySubtitle"
+          />
+          <OrderLookupField
+            v-model="selectedParties.assignee"
+            class="orders-party-filter"
+            label="Assigned employee"
+            resource="parties"
+            :load-page="assigneePage"
+            :item-title="partyName"
+            :item-subtitle="partySubtitle"
           />
           <VTextField
             v-model="filters.dateFrom"
@@ -447,7 +481,8 @@ onScopeDispose(() => {
 }
 
 .orders-filter-options {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
 }
 
 .orders-clear {
@@ -499,7 +534,8 @@ onScopeDispose(() => {
 }
 
 @media (max-width: 760px) {
-  .orders-search-row {
+  .orders-search-row,
+  .orders-filter-options {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -547,8 +583,8 @@ onScopeDispose(() => {
 }
 
 @media (max-width: 520px) {
-  .orders-filter-options {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .orders-party-filter {
+    grid-column: 1 / -1;
   }
 }
 </style>

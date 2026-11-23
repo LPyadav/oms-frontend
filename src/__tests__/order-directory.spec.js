@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { loadOrderPage } from '../api/orders'
+import { loadOrderFilterPartyPage, loadOrderPage } from '../api/orders'
 import { usePagedDirectory } from '../composables/usePagedDirectory'
 import { FIRST_ORDER_PAGE } from '../constants/orders'
 import { formatOrderDate, formatOrderTotal } from '../utils/orderDisplay'
@@ -38,6 +38,8 @@ it('sends Laravel search, filter, sort and page parameters', async () => {
         search: '100%_Packing',
         status: 'ready',
         priority: 'high',
+        customerId: 8,
+        assigneeId: 3,
         dateFrom: '2026-11-01',
         dateTo: '2026-11-30',
         sort: 'total',
@@ -57,10 +59,59 @@ it('sends Laravel search, filter, sort and page parameters', async () => {
     search: '100%_Packing',
     status: 'ready',
     priority: 'high',
+    customer_id: '8',
+    assignee_id: '3',
     date_from: '2026-11-01',
     date_to: '2026-11-30',
   })
   expect(options).toEqual({ signal })
+})
+
+it('offers matching customers from visible orders without exposing contact fields', async () => {
+  const namedCustomer = { id: 8, name: 'Harbór Retail', email: 'contact@example.test' }
+  const sameName = { id: 18, name: 'Harbor Retail' }
+  const request = vi.fn().mockResolvedValue(
+    envelope(
+      [
+        { ...order, customer: namedCustomer },
+        { ...order, id: 49, customer: namedCustomer },
+        { ...order, id: 50, customer: sameName },
+        { ...order, id: 51, customer: { id: 21, name: 'Other Customer' } },
+      ],
+      { current_page: 2, last_page: 4 },
+    ),
+  )
+  const { signal } = new AbortController()
+
+  await expect(
+    loadOrderFilterPartyPage(request, 'customer', { page: 2, search: 'Harbor' }, signal),
+  ).resolves.toEqual({
+    parties: [
+      { id: 8, name: 'Harbór Retail' },
+      { id: 18, name: 'Harbor Retail' },
+    ],
+    lastPage: 4,
+  })
+  expect(request).toHaveBeenCalledExactlyOnceWith(
+    '/api/orders?page=2&sort=order_date&direction=desc&search=Harbor',
+    { signal },
+  )
+})
+
+it('keeps assignee lookup pagination when the current page has no match', async () => {
+  const request = vi
+    .fn()
+    .mockResolvedValue(
+      envelope([order, { ...order, id: 49, assignee: null }], { current_page: 1, last_page: 3 }),
+    )
+
+  await expect(
+    loadOrderFilterPartyPage(request, 'assignee', { page: 1, search: 'Maya' }),
+  ).resolves.toEqual({ parties: [], lastPage: 3 })
+  expect(request).toHaveBeenCalledExactlyOnceWith(
+    '/api/orders?page=1&sort=order_date&direction=desc&search=Maya',
+    { signal: undefined },
+  )
 })
 
 it('honors default server page size and accepts unassigned orders with zero total', async () => {

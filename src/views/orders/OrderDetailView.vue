@@ -77,6 +77,14 @@ async function reloadOrderDetail() {
   heading.value?.focus({ preventScroll: true })
 }
 
+function handleStatusUnavailable(failure) {
+  if (!failure) return reloadOrderDetail()
+
+  order.value = null
+  error.value = failure
+  return closeDialog()
+}
+
 function finishDelete() {
   activeDialog.value = null
   dialogTrigger = null
@@ -199,6 +207,7 @@ onScopeDispose(() => controller.abort())
         @close="closeDialog"
         @refreshed="applyOrderSnapshot"
         @changed="finishOrderChange"
+        @unavailable="handleStatusUnavailable"
       />
       <OrderAssignmentDialog
         v-if="activeDialog === 'assignment'"
