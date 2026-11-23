@@ -16,9 +16,9 @@ const emit = defineEmits(['open-profile'])
     <thead role="rowgroup">
       <tr role="row">
         <th scope="col" role="columnheader">Product</th>
-        <th scope="col" role="columnheader">Unit price</th>
-        <th scope="col" role="columnheader">Tax rate</th>
-        <th scope="col" role="columnheader">Stock</th>
+        <th scope="col" role="columnheader" class="product-number">Unit price</th>
+        <th scope="col" role="columnheader" class="product-number">Tax rate</th>
+        <th scope="col" role="columnheader" class="product-number">Stock</th>
         <th scope="col" role="columnheader">Status</th>
       </tr>
     </thead>
@@ -49,8 +49,7 @@ const emit = defineEmits(['open-profile'])
           <span class="product-cell-label" aria-hidden="true">Stock</span>
           {{ product.stock_quantity }}
         </td>
-        <td role="cell">
-          <span class="product-cell-label" aria-hidden="true">Status</span>
+        <td role="cell" class="product-status">
           <VChip
             :color="product.is_active ? 'primary' : undefined"
             size="small"
@@ -82,20 +81,44 @@ const emit = defineEmits(['open-profile'])
   font-weight: 400;
 }
 
-.product-number {
+.products-table .product-number {
+  text-align: end;
   font-variant-numeric: tabular-nums;
 }
 
 .product-name-button {
+  appearance: none;
   justify-self: start;
-  min-width: 0;
+  min-inline-size: 0;
+  min-block-size: 24px;
   padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+  font: inherit;
   font-weight: 700;
   text-align: start;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: rgba(var(--v-theme-primary), 0.48);
+  text-underline-offset: 3px;
   overflow-wrap: anywhere;
+}
+
+.product-name-button:hover {
+  text-decoration-color: currentColor;
+}
+
+.product-name-button:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  .product-name-button {
+    min-block-size: 36px;
+  }
 }
 
 .product-name span,
@@ -123,9 +146,9 @@ const emit = defineEmits(['open-profile'])
 
   .products-table tbody tr {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: start;
-    gap: 10px;
+    gap: 10px 8px;
     padding: 12px 16px;
     border-top: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   }
@@ -138,7 +161,17 @@ const emit = defineEmits(['open-profile'])
   }
 
   .products-table th[scope='row'] {
-    grid-column: 1 / -1;
+    grid-column: 1 / span 2;
+  }
+
+  .products-table .product-status {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .products-table .product-number {
+    text-align: start;
   }
 
   .product-cell-label {
