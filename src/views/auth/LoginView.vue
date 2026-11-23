@@ -133,6 +133,16 @@ async function retrySession() {
         >
           {{ signingIn ? 'Signing in…' : 'Sign in' }}
         </VBtn>
+        <VBtn
+          :to="{ name: 'forgot-password' }"
+          class="login-recovery-link text-none"
+          color="primary"
+          variant="text"
+          height="44"
+          :disabled="signingIn"
+        >
+          Forgot password?
+        </VBtn>
       </form>
     </section>
   </AuthLayout>
@@ -164,6 +174,10 @@ async function retrySession() {
 .login-form {
   display: grid;
   gap: 18px;
+}
+
+.login-recovery-link {
+  justify-self: start;
 }
 
 .login-form :deep(.v-field) {

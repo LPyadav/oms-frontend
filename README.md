@@ -37,6 +37,11 @@ accepts both the wrapped and original Laravel health responses. Deploy
 | Notifications          | Verify an assignment, confirmation, or cancellation in the recipient inbox. Check the unread badge, mark one, and mark all.                                                                                                                                         |
 | Dashboard and reports  | As Admin or Manager with permission, verify KPIs and revenue. Use Orders → Order status report to review fulfillment by order date. Use Sales & Tax to review completed orders by completion date in the reporting timezone.                                        |
 
+From Sign in, use **Forgot password?** and open the link in the backend’s
+configured mail inbox. The link opens the same frontend origin on
+`/reset-password`. Reset the password, sign in again, and verify that any
+earlier sessions for the account have been revoked.
+
 ## Testing and build
 
 ```sh
