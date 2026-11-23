@@ -11,6 +11,7 @@ const props = defineProps({
   itemTitle: { type: Function, required: true },
   itemSubtitle: { type: Function, default: () => undefined },
   errorMessages: { type: Array, default: () => [] },
+  showItemDetails: Boolean,
   disabled: Boolean,
 })
 const selected = defineModel({ type: Object, default: null })
@@ -29,6 +30,10 @@ const items = computed(() => {
   const entries = options.value
   return choice && !entries.some(({ id }) => id === choice.id) ? [choice, ...entries] : entries
 })
+
+const selectedSubtitle = computed(() =>
+  props.showItemDetails && selected.value ? props.itemSubtitle(selected.value) : undefined,
+)
 
 const noDataText = computed(() => {
   if (loading.value) return 'Searching…'
@@ -100,6 +105,9 @@ onScopeDispose(cancel)
     v-model:menu="open"
     v-model:search="search"
     :label="label"
+    :class="{ 'lookup-with-details': showItemDetails }"
+    :hint="selectedSubtitle"
+    :persistent-hint="Boolean(selectedSubtitle)"
     :items="items"
     :item-title="itemTitle"
     item-value="id"
@@ -107,7 +115,7 @@ onScopeDispose(cancel)
     :disabled="disabled"
     :error-messages="errorMessages"
     :no-data-text="noDataText"
-    :menu-props="{ maxHeight: 320 }"
+    :menu-props="{ maxHeight: 320, maxWidth: showItemDetails ? 480 : undefined }"
     :menu-icon="aliases.dropdown"
     :clear-icon="aliases.clear"
     variant="outlined"
@@ -119,7 +127,12 @@ onScopeDispose(cancel)
     clearable
   >
     <template #item="{ props: itemProps, item }">
-      <VListItem v-bind="itemProps" :subtitle="itemSubtitle(item)" role="option" />
+      <VListItem
+        v-bind="itemProps"
+        :class="{ 'lookup-option-with-details': showItemDetails }"
+        :subtitle="itemSubtitle(item)"
+        role="option"
+      />
     </template>
     <template #append-item>
       <VListItem v-if="error" title="Retry search" @click="fetchPage(page + 1)" />
@@ -132,3 +145,15 @@ onScopeDispose(cancel)
     </template>
   </VAutocomplete>
 </template>
+
+<style scoped>
+.lookup-option-with-details :deep(.v-list-item-subtitle) {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lookup-with-details :deep(.v-messages__message) {
+  overflow-wrap: anywhere;
+}
+</style>

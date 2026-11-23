@@ -15,6 +15,7 @@ function isLog(log) {
   return (
     isId(log?.id) &&
     isId(log.actor_id) &&
+    (log.actor_email == null || typeof log.actor_email === 'string') &&
     (log.actor_name === null || typeof log.actor_name === 'string') &&
     targets.has(log.target_type) &&
     isId(log.target_id) &&

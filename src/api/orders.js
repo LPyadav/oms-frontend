@@ -16,6 +16,14 @@ function isParty(party) {
   )
 }
 
+function isOrderAssignee(assignee) {
+  return (
+    isParty(assignee) &&
+    ((assignee.email === undefined && assignee.roles === undefined) ||
+      (namedText(assignee.email) && validEntries(assignee.roles, namedText)))
+  )
+}
+
 export function isCalendarDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const time = Date.parse(value)
@@ -29,7 +37,7 @@ export function isOrderSummary(order) {
     typeof order.order_number === 'string' &&
     !!order.order_number.trim() &&
     isParty(order.customer) &&
-    (order.assignee === null || isParty(order.assignee)) &&
+    (order.assignee === null || isOrderAssignee(order.assignee)) &&
     isCalendarDate(order.order_date) &&
     Object.hasOwn(ORDER_STATUS, order.status) &&
     Object.hasOwn(ORDER_PRIORITY, order.priority) &&
@@ -211,7 +219,7 @@ export function loadOrderAssigneePage(request, { page, search }, signal) {
   return request(`/api/orders/assignees?${params}`, { signal }).then((response) =>
     readPaginatedResource(response, {
       resource: 'assignees',
-      isEntry: isParty,
+      isEntry: isOrderAssignee,
       page,
       invalidMessage: 'The server returned an invalid assignee page.',
     }),

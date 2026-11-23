@@ -41,3 +41,8 @@ export function formatOrderTimestamp(value) {
 export function formatOrderTaxRate(basisPoints) {
   return taxRateFormatter.format(basisPoints / 10_000)
 }
+
+export function formatOrderAssigneeSubtitle(assignee) {
+  const roles = assignee.roles ? assignee.roles.join(', ') || 'No roles' : undefined
+  return [assignee.email, roles].filter(Boolean).join(' · ') || undefined
+}

@@ -9,6 +9,7 @@ const confirmedAt = '2026-11-20T06:20:00Z'
 const processingAt = '2026-11-20T06:30:00Z'
 const actor = { id: 3, name: 'Maya Chen' }
 const assignee = { id: 5, name: 'Mira Lane' }
+const assigneeProfile = { ...assignee, email: 'mira@example.test', roles: ['staff'] }
 const item = {
   position: 1,
   product_id: 3,
@@ -80,6 +81,16 @@ describe('loading an order', () => {
     expect(request).toHaveBeenCalledExactlyOnceWith('/api/orders/42', { signal })
   })
 
+  it.each([assigneeProfile, { ...assigneeProfile, roles: [] }, null])(
+    'preserves the assignee detail %j',
+    async (assignee) => {
+      const order = orderDetail({ assignee })
+      const request = vi.fn().mockResolvedValue(payload(order))
+
+      await expect(loadOrder(request, '42')).resolves.toBe(order)
+    },
+  )
+
   it.each(['0', '42/notes', '1e2', '9007199254740992'])(
     'treats invalid route ID %s as unavailable before requesting',
     async (id) => {
@@ -95,6 +106,10 @@ describe('loading an order', () => {
     { items: [{ ...item, unit_price_minor: '350' }] },
     { status_history: [{ id: 1, new_status: 'shipped', created_at: createdAt }] },
     { system_activity: undefined },
+    { assignee: { ...assignee, roles: assigneeProfile.roles } },
+    { assignee: { ...assignee, email: assigneeProfile.email } },
+    { assignee: { ...assigneeProfile, email: null } },
+    { assignee: { ...assigneeProfile, roles: [1] } },
   ])('rejects malformed or mismatched detail %j', async (overrides) => {
     const request = vi.fn().mockResolvedValue(payload(orderDetail(overrides)))
 

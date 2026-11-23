@@ -11,6 +11,7 @@ import CatalogDirectoryShell from '../../components/directory/CatalogDirectorySh
 import { usePagedDirectory } from '../../composables/usePagedDirectory'
 import { useAuthStore } from '../../stores/auth'
 import { formatAccessAuditAction, formatAccessAuditTime } from '../../utils/accessAudit'
+import { formatAuditActor } from '../../utils/auditActor'
 
 const auth = useAuthStore()
 const heading = useTemplateRef('heading')
@@ -180,7 +181,7 @@ onScopeDispose(() => requests.abort())
           <tr v-for="log in result.logs" :key="log.id">
             <th scope="row">{{ formatAccessAuditAction(log.action) }}</th>
             <td>
-              <span class="mobile-label" aria-hidden="true">Actor</span> User #{{ log.actor_id }}
+              <span class="mobile-label" aria-hidden="true">Actor</span> {{ formatAuditActor(log) }}
             </td>
             <td>
               <span class="mobile-label" aria-hidden="true">Target</span>

@@ -10,6 +10,7 @@ import OperationalAuditDetailDialog from '../../components/admin/OperationalAudi
 import CatalogDirectoryShell from '../../components/directory/CatalogDirectoryShell.vue'
 import { usePagedDirectory } from '../../composables/usePagedDirectory'
 import { useAuthStore } from '../../stores/auth'
+import { formatAuditActor } from '../../utils/auditActor'
 import {
   formatOperationalAuditAction,
   formatOperationalAuditTime,
@@ -223,7 +224,7 @@ onScopeDispose(() => requests.abort())
             <th scope="row" role="rowheader">{{ formatOperationalAuditAction(log.action) }}</th>
             <td role="cell">
               <span class="mobile-label" aria-hidden="true">Actor</span>
-              {{ log.actor_name ?? 'User' }} #{{ log.actor_id }}
+              {{ formatAuditActor(log, log.actor_name) }}
             </td>
             <td role="cell">
               <span class="mobile-label" aria-hidden="true">Target</span>

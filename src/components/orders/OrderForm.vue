@@ -21,13 +21,14 @@ import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { loadCustomerPage } from '../../api/customers'
 import { loadOrder, loadOrderAssigneePage, updateOrder } from '../../api/orders'
 import { loadProductPage } from '../../api/products'
+import OrderAssigneeIdentity from './OrderAssigneeIdentity.vue'
 import OrderItemsCard from './OrderItemsCard.vue'
 import OrderLineFields from './OrderLineFields.vue'
 import OrderLookupField from './OrderLookupField.vue'
 import { useOrderCreation } from '../../composables/useOrderCreation'
 import { isOrderEditable, ORDER_PRIORITY, ORDER_STATUS } from '../../constants/orders'
 import { useAuthStore } from '../../stores/auth'
-import { formatOrderDate } from '../../utils/orderDisplay'
+import { formatOrderAssigneeSubtitle, formatOrderDate } from '../../utils/orderDisplay'
 import {
   changedOrderFields,
   createOrderDraft,
@@ -575,6 +576,8 @@ onScopeDispose(() => controller.abort())
               resource="assignees"
               :load-page="assigneePage"
               :item-title="name"
+              :item-subtitle="formatOrderAssigneeSubtitle"
+              show-item-details
               :error-messages="errorsFor('assignee_id')"
               @update:model-value="clearFieldError('assignee_id')"
             />
@@ -610,7 +613,10 @@ onScopeDispose(() => controller.abort())
               <div>
                 <dt>Assigned to</dt>
                 <dd>
-                  {{ (isEditing ? baseline.assignee?.name : draft.assignee?.name) ?? 'Unassigned' }}
+                  <OrderAssigneeIdentity
+                    :assignee="isEditing ? baseline.assignee : draft.assignee"
+                    :show-details="auth.canAssignOrders"
+                  />
                 </dd>
               </div>
               <div v-if="draft.note.trim()" class="review-note">
