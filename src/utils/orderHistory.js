@@ -10,6 +10,9 @@ export function orderTimeline(order) {
     reached.add(event.new_status)
     timestamps.set(event.new_status, event.created_at)
   }
+  if (!timestamps.has('draft') && reached.has('draft')) {
+    timestamps.set('draft', order.created_at)
+  }
   if (!timestamps.has('completed') && order.completed_at) {
     timestamps.set('completed', order.completed_at)
   }

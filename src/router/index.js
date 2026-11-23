@@ -81,6 +81,12 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             component: () => import('../views/admin/AccessAuditView.vue'),
             meta: { pageTitle: 'Access audit', requiresAccessAudit: true },
           },
+          {
+            path: 'audit',
+            name: 'admin-operational-audit',
+            component: () => import('../views/admin/OperationalAuditView.vue'),
+            meta: { pageTitle: 'Operational audit', requiresAccessAudit: true },
+          },
         ],
       },
       {
@@ -160,6 +166,19 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         name: 'access-denied',
         component: () => import('../views/AccessDeniedView.vue'),
         meta: { requiresAuth: true },
+      },
+      {
+        path: '/account',
+        component: workspaceLayout,
+        meta: { requiresAuth: true, sectionTitle: 'Account' },
+        children: [
+          {
+            path: 'password',
+            name: 'account-password',
+            component: () => import('../views/auth/ChangePasswordView.vue'),
+            meta: { pageTitle: 'Change password' },
+          },
+        ],
       },
       {
         path: '/workspace',

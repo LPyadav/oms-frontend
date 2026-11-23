@@ -53,6 +53,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = shallowRef(null)
   const error = shallowRef(null)
   const signedOutExplicitly = ref(false)
+  const passwordWasChanged = ref(false)
   const expiresSoon = ref(false)
   const isAuthenticated = computed(() => status.value === AUTH_STATUS.AUTHENTICATED)
   const sessionExpiresSoon = computed(() => isAuthenticated.value && expiresSoon.value)
@@ -164,6 +165,7 @@ export const useAuthStore = defineStore('auth', () => {
     expiresSoon.value = false
     if (next) {
       signedOutExplicitly.value = false
+      passwordWasChanged.value = false
       scheduleExpiry(next)
     }
 
@@ -287,6 +289,17 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function changePassword(passwords) {
+    const current = session
+    await request('/api/me/password', { method: 'PATCH', body: passwords })
+
+    if (session === current) {
+      clearSession()
+      signedOutExplicitly.value = true
+      passwordWasChanged.value = true
+    }
+  }
+
   async function refreshCurrentUser() {
     const current = activeSession()
     if (!current || !isAuthenticated.value) return null
@@ -336,6 +349,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     sessionExpiresSoon,
     signedOutExplicitly,
+    passwordWasChanged,
     canManageUsers,
     canManageRoles,
     canAssignUserRoles,
@@ -359,6 +373,7 @@ export const useAuthStore = defineStore('auth', () => {
     initialize,
     login,
     logout,
+    changePassword,
     request,
     refreshCurrentUser,
     clearSession,

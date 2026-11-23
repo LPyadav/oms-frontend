@@ -9,7 +9,9 @@ it('produces one Draft milestone on every visit without changing other timelines
   const pendingKeys = orderTimeline(pending).map(({ key }) => key)
 
   for (let index = 0; index < 5; index++) {
-    expect(orderTimeline(draft).map(({ key }) => key)).toEqual([
+    const timeline = orderTimeline(draft)
+    expect(timeline.find(({ key }) => key === 'draft')?.at).toBe(createdAt)
+    expect(timeline.map(({ key }) => key)).toEqual([
       'created',
       'draft',
       'pending',
@@ -34,6 +36,8 @@ it('includes a single Draft milestone for an order that later moved out of Draft
   }
   const timeline = orderTimeline(order)
 
-  expect(timeline.filter(({ key }) => key === 'draft')).toHaveLength(1)
+  expect(timeline.filter(({ key }) => key === 'draft')).toEqual([
+    { key: 'draft', title: 'Draft', at: createdAt, reached: true },
+  ])
   expect(timeline.find(({ key }) => key === 'pending')).toMatchObject({ at, reached: true })
 })

@@ -11,6 +11,7 @@ import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useCustomerProfile } from '../../composables/useCustomerProfile'
 import { useAuthStore } from '../../stores/auth'
+import CustomerOrderSummary from './CustomerOrderSummary.vue'
 
 const props = defineProps({
   customerId: { type: Number, default: null },
@@ -226,6 +227,11 @@ onScopeDispose(() => requests.abort())
                   <dd>{{ customer.address || 'Not provided' }}</dd>
                 </div>
               </dl>
+              <CustomerOrderSummary
+                v-if="auth.canViewOrders"
+                :key="customer.id"
+                :customer-id="customer.id"
+              />
             </template>
           </template>
         </div>

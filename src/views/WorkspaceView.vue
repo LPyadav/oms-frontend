@@ -115,6 +115,25 @@ async function signOut() {
         View access audit
       </VBtn>
       <VBtn
+        v-if="canViewAccessAudit"
+        :to="{ name: 'admin-operational-audit' }"
+        class="text-none"
+        color="primary"
+        variant="outlined"
+        height="48"
+      >
+        View operational audit
+      </VBtn>
+      <VBtn
+        :to="{ name: 'account-password' }"
+        class="text-none"
+        color="primary"
+        variant="outlined"
+        height="48"
+      >
+        Change password
+      </VBtn>
+      <VBtn
         v-if="canViewCustomers"
         :to="{ name: 'catalog-customers' }"
         class="text-none"

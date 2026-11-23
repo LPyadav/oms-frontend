@@ -184,6 +184,21 @@ function focusMain() {
           @click="mobileNavigationOpen = false"
         />
         <VListItem
+          v-if="auth.canViewAccessAudit"
+          :to="{ name: 'admin-operational-audit' }"
+          :prepend-icon="aliases.info"
+          title="Operational audit"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
+          :to="{ name: 'account-password' }"
+          :prepend-icon="aliases.info"
+          title="Change password"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
           v-if="auth.canViewOrders"
           :to="{ name: 'orders' }"
           :prepend-icon="aliases.calendar"
