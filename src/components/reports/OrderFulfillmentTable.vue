@@ -18,7 +18,7 @@ const statusColors = {
 <template>
   <VTable class="fulfillment-table" density="comfortable">
     <caption class="d-sr-only">
-      Orders in the status report
+      Matching orders
     </caption>
     <thead role="rowgroup">
       <tr role="row">

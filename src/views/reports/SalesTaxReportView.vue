@@ -10,9 +10,10 @@ import DirectoryPagination from '../../components/directory/DirectoryPagination.
 import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import OrderLookupField from '../../components/orders/OrderLookupField.vue'
+import ReportLoadingState from '../../components/reports/ReportLoadingState.vue'
 import SalesTaxTable from '../../components/reports/SalesTaxTable.vue'
 import { useReportDirectory } from '../../composables/useReportDirectory'
-import { SALES_TAX_AMOUNTS } from '../../constants/reports'
+import { REPORT_TITLE, SALES_TAX_AMOUNTS } from '../../constants/reports'
 import { useAuthStore } from '../../stores/auth'
 import { formatDirectoryPageRange, getDirectoryErrorMessage } from '../../utils/directory'
 import { formatOrderDate, formatOrderTotal } from '../../utils/orderDisplay'
@@ -75,7 +76,7 @@ const pageRange = computed(() =>
   formatDirectoryPageRange(result.value, result.value?.orders.length ?? 0, 'order', 'orders'),
 )
 const errorMessage = computed(() =>
-  getDirectoryErrorMessage(error.value, 'Unable to load the Sales & Tax report.', {
+  getDirectoryErrorMessage(error.value, `Unable to load the ${REPORT_TITLE.SALES_TAX}.`, {
     403: 'You do not have permission to view reports.',
     422: 'Check the filters, then apply again.',
   }),
@@ -129,7 +130,7 @@ onScopeDispose(() => requests.abort())
   >
     <header class="report-header">
       <div>
-        <h1 id="sales-title" ref="heading" tabindex="-1">Sales &amp; Tax</h1>
+        <h1 id="sales-title" ref="heading" tabindex="-1">{{ REPORT_TITLE.SALES_TAX }}</h1>
         <p>Realized sales and tax by completion date.</p>
       </div>
       <VBtn
@@ -236,7 +237,7 @@ onScopeDispose(() => requests.abort())
     </DirectoryPanel>
 
     <DirectoryPanel v-if="loading || error" class="report-state">
-      <DirectoryState v-if="loading" kind="loading" message="Loading report…" />
+      <ReportLoadingState v-if="loading" />
       <DirectoryState v-else kind="error" :message="errorMessage">
         <template v-if="![403, 422].includes(error.status)" #actions>
           <VBtn type="button" variant="outlined" class="text-none report-retry" @click="load()">
@@ -325,7 +326,7 @@ onScopeDispose(() => requests.abort())
               v-if="result.lastPage > 1"
               :current-page="result.currentPage"
               :last-page="result.lastPage"
-              label="Sales &amp; Tax pagination"
+              :label="`${REPORT_TITLE.SALES_TAX} pagination`"
               @page-change="changePage"
             />
           </footer>

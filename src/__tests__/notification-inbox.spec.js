@@ -62,9 +62,9 @@ describe('notification read actions', () => {
     expect(inbox.unreadCount.value).toBe(0)
     expect(inbox.actionNotice.value).toBe('Notification marked as read.')
     expect(methods()).toEqual([
-      ['/api/notifications?page=1&status=unread', 'GET'],
+      ['/api/notifications?page=1&per_page=10&status=unread', 'GET'],
       ['/api/notifications/18/read', 'PATCH'],
-      ['/api/notifications?page=1&status=unread', 'GET'],
+      ['/api/notifications?page=1&per_page=10&status=unread', 'GET'],
       ['/api/notifications/unread-count', 'GET'],
     ])
   })
@@ -93,9 +93,9 @@ describe('notification read actions', () => {
     expect(inbox.pendingAction.value).toBeNull()
     expect(methods().slice(2)).toEqual([
       ['/api/notifications/read-all', 'PATCH'],
-      ['/api/notifications?page=2&status=unread', 'GET'],
+      ['/api/notifications?page=2&per_page=10&status=unread', 'GET'],
       ['/api/notifications/unread-count', 'GET'],
-      ['/api/notifications?page=1&status=unread', 'GET'],
+      ['/api/notifications?page=1&per_page=10&status=unread', 'GET'],
     ])
   })
 
@@ -115,7 +115,7 @@ describe('notification read actions', () => {
     expect(inbox.actionNotice.value).toBe('This notification is no longer available.')
     expect(methods().slice(1)).toEqual([
       ['/api/notifications/18/read', 'PATCH'],
-      ['/api/notifications?page=1', 'GET'],
+      ['/api/notifications?page=1&per_page=10', 'GET'],
       ['/api/notifications/unread-count', 'GET'],
     ])
   })
@@ -134,7 +134,7 @@ describe('notification read actions', () => {
     expect(inbox.page.value.notifications).toEqual([readNotification])
     expect(methods()).toEqual([
       ['/api/notifications/read-all', 'PATCH'],
-      ['/api/notifications?page=1', 'GET'],
+      ['/api/notifications?page=1&per_page=10', 'GET'],
       ['/api/notifications/unread-count', 'GET'],
     ])
   })

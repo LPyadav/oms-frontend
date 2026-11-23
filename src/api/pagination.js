@@ -1,5 +1,11 @@
 import { ApiError } from './client'
 
+export function createPageParams(page, perPage) {
+  const params = new URLSearchParams({ page: String(page) })
+  if (perPage != null) params.set('per_page', String(perPage))
+  return params
+}
+
 export function readPaginatedResource(response, { resource, isEntry, page, invalidMessage }) {
   const entries = response?.data?.[resource]
   const meta = response?.meta

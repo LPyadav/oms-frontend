@@ -1,5 +1,5 @@
 import { ApiError } from './client'
-import { readPaginatedResource } from './pagination'
+import { createPageParams, readPaginatedResource } from './pagination'
 
 export const ADMIN_USERS_PATH = '/api/admin/users'
 
@@ -15,8 +15,8 @@ function isAdminUser(user) {
   )
 }
 
-export async function loadAdminUserPage(request, { page, search, status, role }, signal) {
-  const params = new URLSearchParams({ page: String(page) })
+export async function loadAdminUserPage(request, { page, perPage, search, status, role }, signal) {
+  const params = createPageParams(page, perPage)
   if (search) params.set('search', search)
   if (status === 'active') params.set('is_active', '1')
   if (status === 'disabled') params.set('is_active', '0')

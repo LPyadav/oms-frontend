@@ -1,4 +1,5 @@
 import { ref, shallowRef } from 'vue'
+import { DIRECTORY_PAGE_SIZE } from '../constants/pagination'
 
 export function usePagedDirectory({ fetchPage, signal, initialQuery }) {
   const query = shallowRef({ ...initialQuery })
@@ -19,7 +20,7 @@ export function usePagedDirectory({ fetchPage, signal, initialQuery }) {
     error.value = null
 
     try {
-      const page = await fetchPage(query.value, requestSignal)
+      const page = await fetchPage({ ...query.value, perPage: DIRECTORY_PAGE_SIZE }, requestSignal)
       if (requestSignal.aborted) return null
 
       result.value = page

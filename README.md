@@ -27,11 +27,13 @@ accepts both the wrapped and original Laravel health responses. Deploy
 
 ## Workflows
 
+Paginated listings show up to 10 rows per page.
+
 Apply the filters, then select **Export CSV** on the relevant page.
 
 - **Orders** uses the applied search, filters and sort. It requires global order access.
-- **Order status report** uses the selected order date range, status, customer and assignee.
-- **Sales & Tax** uses the completion date range, customer and product. A product
+- **Order/Fulfillment report** uses the selected order date range, status, customer and assignee.
+- **Sales/Tax report** uses the completion date range, customer and product. A product
   filter includes the full totals of matching completed orders.
 
 Both report downloads require report access. Each CSV includes matching rows
@@ -46,7 +48,7 @@ result exceeds that limit.
 | Customers and products | Search and manage catalog entries. Customer detail shows scoped order counts, currency-specific values, and recent orders. Review fresh counts after a stock conflict.                                                                                              |
 | Orders                 | As Manager, create an order with multiple products, discounts and tax, assign it, confirm it, and inspect the saved totals and stock change. Sign in as its Staff assignee and progress through permitted stages. Verify an unrelated Staff account cannot open it. |
 | Notifications          | Verify an assignment, confirmation, or cancellation in the recipient inbox. Check the unread badge, mark one, and mark all.                                                                                                                                         |
-| Dashboard and reports  | As Admin or Manager with permission, verify KPIs and revenue. Use Orders → Order status report to review fulfillment by order date. Use Sales & Tax to review completed orders by completion date in the reporting timezone.                                        |
+| Dashboard and reports  | As Admin or Manager with permission, verify KPIs and revenue. Under Reports, use Order/Fulfillment report for order dates and Sales/Tax report for completion dates in the reporting timezone.                                                                      |
 
 From Sign in, use **Forgot password?** and open the link in the backend’s
 configured mail inbox. The link opens the same frontend origin on
