@@ -86,15 +86,38 @@ const emit = defineEmits(['open-profile'])
 }
 
 .customer-name-button {
+  appearance: none;
   justify-self: start;
-  min-width: 0;
+  min-inline-size: 0;
+  min-block-size: 24px;
   padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   color: rgb(var(--v-theme-primary));
+  cursor: pointer;
+  font: inherit;
   font-weight: 700;
   text-align: start;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration-color: rgba(var(--v-theme-primary), 0.48);
+  text-underline-offset: 3px;
   overflow-wrap: anywhere;
+}
+
+.customer-name-button:hover {
+  text-decoration-color: currentColor;
+}
+
+.customer-name-button:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 3px;
+}
+
+@media (pointer: coarse) {
+  .customer-name-button {
+    min-block-size: 36px;
+  }
 }
 
 .customer-name span,

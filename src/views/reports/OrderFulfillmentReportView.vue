@@ -55,7 +55,7 @@ const pageRange = computed(() =>
   formatDirectoryPageRange(result.value, result.value?.orders.length ?? 0, 'order', 'orders'),
 )
 const errorMessage = computed(() =>
-  getDirectoryErrorMessage(error.value, 'Unable to load the Order Fulfillment report.', {
+  getDirectoryErrorMessage(error.value, 'Unable to load the order status report.', {
     403: 'You do not have permission to view reports.',
     422: 'Check the filters, then apply again.',
   }),
@@ -101,8 +101,8 @@ onScopeDispose(() => requests.abort())
 <template>
   <section v-if="auth.canViewReports" class="report-page" aria-labelledby="fulfillment-title">
     <header class="report-header">
-      <h1 id="fulfillment-title" ref="heading" tabindex="-1">Order Fulfillment</h1>
-      <p>Orders and totals by business order date.</p>
+      <h1 id="fulfillment-title" ref="heading" tabindex="-1">Order status report</h1>
+      <p>Review fulfillment progress and order totals by business order date.</p>
     </header>
 
     <DirectoryPanel>
@@ -267,7 +267,7 @@ onScopeDispose(() => requests.abort())
               v-if="result.lastPage > 1"
               :current-page="result.currentPage"
               :last-page="result.lastPage"
-              label="Order Fulfillment pagination"
+              label="Order status report pagination"
               @page-change="changePage"
             />
           </footer>

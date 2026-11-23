@@ -47,7 +47,7 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             path: 'orders',
             name: 'report-orders',
             component: () => import('../views/reports/OrderFulfillmentReportView.vue'),
-            meta: { pageTitle: 'Order Fulfillment' },
+            meta: { pageTitle: 'Order status report', navigationGroup: 'orders' },
           },
           {
             path: 'sales-tax',
@@ -79,13 +79,21 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
             path: 'access-audit',
             name: 'admin-access-audit',
             component: () => import('../views/admin/AccessAuditView.vue'),
-            meta: { pageTitle: 'Access audit', requiresAccessAudit: true },
+            meta: {
+              pageTitle: 'Access audit',
+              requiresAccessAudit: true,
+              navigationGroup: 'audit',
+            },
           },
           {
             path: 'audit',
             name: 'admin-operational-audit',
             component: () => import('../views/admin/OperationalAuditView.vue'),
-            meta: { pageTitle: 'Operational audit', requiresAccessAudit: true },
+            meta: {
+              pageTitle: 'Operational audit',
+              requiresAccessAudit: true,
+              navigationGroup: 'audit',
+            },
           },
         ],
       },
@@ -112,7 +120,12 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       {
         path: '/orders',
         component: workspaceLayout,
-        meta: { requiresAuth: true, sectionTitle: 'Order management', requiresOrderView: true },
+        meta: {
+          requiresAuth: true,
+          sectionTitle: 'Order management',
+          requiresOrderView: true,
+          navigationGroup: 'orders',
+        },
         children: [
           {
             path: '',
