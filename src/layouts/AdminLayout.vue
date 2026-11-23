@@ -11,6 +11,7 @@ import { VList, VListItem } from 'vuetify/components/VList'
 import { VMain } from 'vuetify/components/VMain'
 import { VNavigationDrawer } from 'vuetify/components/VNavigationDrawer'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import NotificationBell from '../components/notifications/NotificationBell.vue'
 import { useAuthStore } from '../stores/auth'
 import { getAccountInitials } from '../utils/accountInitials'
 
@@ -211,19 +212,22 @@ function focusMain() {
           <strong>{{ route.meta.pageTitle }}</strong>
         </div>
 
-        <div v-if="auth.user" class="admin-account" role="group" aria-label="Signed-in account">
-          <VAvatar
-            size="34"
-            color="primary"
-            variant="tonal"
-            class="account-avatar"
-            aria-hidden="true"
-          >
-            {{ getAccountInitials(auth.user.name) }}
-          </VAvatar>
-          <div class="account-label">
-            <strong>{{ auth.user.name }}</strong>
-            <span v-if="accountRole">{{ accountRole }}</span>
+        <div class="admin-header-actions">
+          <NotificationBell v-if="auth.canViewOrders" />
+          <div v-if="auth.user" class="admin-account" role="group" aria-label="Signed-in account">
+            <VAvatar
+              size="34"
+              color="primary"
+              variant="tonal"
+              class="account-avatar"
+              aria-hidden="true"
+            >
+              {{ getAccountInitials(auth.user.name) }}
+            </VAvatar>
+            <div class="account-label">
+              <strong>{{ auth.user.name }}</strong>
+              <span v-if="accountRole">{{ accountRole }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -347,6 +351,13 @@ function focusMain() {
   justify-content: space-between;
   gap: 12px;
   height: 100%;
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: clamp(4px, 2vw, 12px);
 }
 
 .admin-location,
