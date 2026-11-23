@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { onMounted, ref, useTemplateRef } from 'vue'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
+import NotificationBell from '../components/notifications/NotificationBell.vue'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
@@ -40,7 +41,10 @@ async function signOut() {
 <template>
   <main v-if="isAuthenticated && user" class="workspace">
     <section class="workspace-panel" aria-labelledby="workspace-heading">
-      <h1 id="workspace-heading" ref="workspaceHeading" tabindex="-1">OMS workspace</h1>
+      <div class="workspace-panel-heading">
+        <h1 id="workspace-heading" ref="workspaceHeading" tabindex="-1">OMS workspace</h1>
+        <NotificationBell v-if="canViewOrders" />
+      </div>
       <div class="workspace-account">
         <strong>{{ user.name }}</strong>
         <p>{{ user.email }}</p>
@@ -139,6 +143,13 @@ async function signOut() {
   border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
   border-radius: 20px;
   background: rgb(var(--v-theme-surface));
+}
+
+.workspace-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .workspace-panel h1 {

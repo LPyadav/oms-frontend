@@ -15,6 +15,7 @@ vi.mock('../views/orders/OrderDirectoryView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/OrderDetailView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/CreateOrderView.vue', () => ({ default: {} }))
 vi.mock('../views/orders/EditOrderView.vue', () => ({ default: {} }))
+vi.mock('../views/notifications/NotificationsView.vue', () => ({ default: {} }))
 
 const user = { id: 1, name: 'Alex Morgan', email: 'alex@example.test' }
 let pinia
@@ -266,3 +267,27 @@ it.each([
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
   },
 )
+
+it('sends signed-out notification visitors to login with their intended route', async () => {
+  await router.push('/notifications')
+  expect(router.currentRoute.value.name).toBe('login')
+  expect(router.currentRoute.value.query.redirect).toBe('/notifications')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+it.each(['orders.view.any', 'orders.view.assigned'])(
+  'opens the inbox for an account with %s',
+  async (permission) => {
+    rememberAccount(['staff'], [permission])
+    await router.push('/notifications')
+    expect(router.currentRoute.value.name).toBe('notifications')
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+  },
+)
+
+it('denies inbox access to accounts without order-view permission', async () => {
+  rememberAccount(['staff'], [])
+  await router.push('/notifications')
+  expect(router.currentRoute.value.name).toBe('access-denied')
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/me'])
+})

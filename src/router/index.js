@@ -110,6 +110,19 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         ],
       },
       {
+        path: '/notifications',
+        component: workspaceLayout,
+        meta: { requiresAuth: true, sectionTitle: 'Order management', requiresOrderView: true },
+        children: [
+          {
+            path: '',
+            name: 'notifications',
+            component: () => import('../views/notifications/NotificationsView.vue'),
+            meta: { pageTitle: 'Notifications' },
+          },
+        ],
+      },
+      {
         path: '/access-denied',
         name: 'access-denied',
         component: () => import('../views/AccessDeniedView.vue'),
