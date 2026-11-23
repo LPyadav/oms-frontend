@@ -16,13 +16,13 @@ function isParty(party) {
   )
 }
 
-function isCalendarDate(value) {
+export function isCalendarDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const time = Date.parse(value)
   return Number.isFinite(time) && new Date(time).toISOString().slice(0, 10) === value
 }
 
-function isOrder(order) {
+export function isOrderSummary(order) {
   return (
     Number.isSafeInteger(order?.id) &&
     order.id > 0 &&
@@ -65,7 +65,7 @@ export async function loadOrderPage(request, query, signal) {
   const response = await request(`/api/orders?${params}`, { signal })
   return readPaginatedResource(response, {
     resource: 'orders',
-    isEntry: isOrder,
+    isEntry: isOrderSummary,
     page,
     invalidMessage: 'The server returned an invalid order page.',
   })
@@ -165,7 +165,7 @@ function isSystemActivity(entry) {
 
 function isOrderDetail(order) {
   return (
-    isOrder(order) &&
+    isOrderSummary(order) &&
     positiveInteger(order.version) &&
     nonnegativeInteger(order.order_discount_minor) &&
     isOrderTaxRate(order.order_tax_rate_basis_points) &&

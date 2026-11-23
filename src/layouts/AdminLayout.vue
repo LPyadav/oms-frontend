@@ -104,6 +104,30 @@ function focusMain() {
 
       <VList nav class="admin-links">
         <VListItem
+          v-if="auth.canViewDashboard"
+          :to="{ name: 'dashboard' }"
+          :prepend-icon="aliases.menu"
+          title="Dashboard"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
+          v-if="auth.canViewReports"
+          :to="{ name: 'report-orders' }"
+          :prepend-icon="aliases.file"
+          title="Order Fulfillment"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
+          v-if="auth.canViewReports"
+          :to="{ name: 'report-sales-tax' }"
+          :prepend-icon="aliases.file"
+          title="Sales &amp; Tax"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
           v-if="auth.canManageUsers"
           :to="{ name: 'admin-users' }"
           title="Users"

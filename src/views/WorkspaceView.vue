@@ -11,6 +11,8 @@ const {
   canManageUsers,
   canManageRoles,
   canViewAccessAudit,
+  canViewDashboard,
+  canViewReports,
   canViewCustomers,
   canViewProducts,
   canViewOrders,
@@ -52,6 +54,36 @@ async function signOut() {
       <VAlert v-if="feedback" type="error" :icon="false" variant="tonal" role="alert">
         {{ feedback }}
       </VAlert>
+      <VBtn
+        v-if="canViewDashboard"
+        :to="{ name: 'dashboard' }"
+        class="text-none"
+        color="primary"
+        variant="outlined"
+        height="48"
+      >
+        Open dashboard
+      </VBtn>
+      <VBtn
+        v-if="canViewReports"
+        :to="{ name: 'report-orders' }"
+        class="text-none"
+        color="primary"
+        variant="outlined"
+        height="48"
+      >
+        Order Fulfillment report
+      </VBtn>
+      <VBtn
+        v-if="canViewReports"
+        :to="{ name: 'report-sales-tax' }"
+        class="text-none"
+        color="primary"
+        variant="outlined"
+        height="48"
+      >
+        Sales &amp; Tax report
+      </VBtn>
       <VBtn
         v-if="canManageUsers"
         :to="{ name: 'admin-users' }"

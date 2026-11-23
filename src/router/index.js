@@ -25,6 +25,39 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         meta: { guestOnly: true },
       },
       {
+        path: '/dashboard',
+        component: workspaceLayout,
+        meta: { requiresAuth: true, sectionTitle: 'Analytics', requiresDashboardView: true },
+        children: [
+          {
+            path: '',
+            name: 'dashboard',
+            component: () => import('../views/DashboardView.vue'),
+            meta: { pageTitle: 'Dashboard' },
+          },
+        ],
+      },
+      {
+        path: '/reports',
+        component: workspaceLayout,
+        redirect: { name: 'report-orders' },
+        meta: { requiresAuth: true, sectionTitle: 'Reports', requiresReportsView: true },
+        children: [
+          {
+            path: 'orders',
+            name: 'report-orders',
+            component: () => import('../views/reports/OrderFulfillmentReportView.vue'),
+            meta: { pageTitle: 'Order Fulfillment' },
+          },
+          {
+            path: 'sales-tax',
+            name: 'report-sales-tax',
+            component: () => import('../views/reports/SalesTaxReportView.vue'),
+            meta: { pageTitle: 'Sales & Tax' },
+          },
+        ],
+      },
+      {
         path: '/admin',
         component: workspaceLayout,
         redirect: { name: 'admin-users' },
@@ -157,6 +190,8 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
       (to.meta.requiresAccessAudit && !auth.canViewAccessAudit) ||
       (to.meta.requiresCustomerView && !auth.canViewCustomers) ||
       (to.meta.requiresProductView && !auth.canViewProducts) ||
+      (to.meta.requiresDashboardView && !auth.canViewDashboard) ||
+      (to.meta.requiresReportsView && !auth.canViewReports) ||
       (to.meta.requiresOrderView && !auth.canViewOrders) ||
       (to.meta.requiresOrderCreate && !auth.canCreateOrders) ||
       (to.meta.requiresOrderEdit && !auth.canEditOrders)
