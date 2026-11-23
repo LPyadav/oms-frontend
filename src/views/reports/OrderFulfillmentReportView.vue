@@ -11,8 +11,10 @@ import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import OrderLookupField from '../../components/orders/OrderLookupField.vue'
 import OrderFulfillmentTable from '../../components/reports/OrderFulfillmentTable.vue'
+import ReportLoadingState from '../../components/reports/ReportLoadingState.vue'
 import { useReportDirectory } from '../../composables/useReportDirectory'
 import { ORDER_STATUS } from '../../constants/orders'
+import { REPORT_TITLE } from '../../constants/reports'
 import { useAuthStore } from '../../stores/auth'
 import { formatDirectoryPageRange, getDirectoryErrorMessage } from '../../utils/directory'
 import { formatOrderDate, formatOrderTimestamp, formatOrderTotal } from '../../utils/orderDisplay'
@@ -55,7 +57,7 @@ const pageRange = computed(() =>
   formatDirectoryPageRange(result.value, result.value?.orders.length ?? 0, 'order', 'orders'),
 )
 const errorMessage = computed(() =>
-  getDirectoryErrorMessage(error.value, 'Unable to load the order status report.', {
+  getDirectoryErrorMessage(error.value, `Unable to load the ${REPORT_TITLE.ORDER_FULFILLMENT}.`, {
     403: 'You do not have permission to view reports.',
     422: 'Check the filters, then apply again.',
   }),
@@ -101,7 +103,9 @@ onScopeDispose(() => requests.abort())
 <template>
   <section v-if="auth.canViewReports" class="report-page" aria-labelledby="fulfillment-title">
     <header class="report-header">
-      <h1 id="fulfillment-title" ref="heading" tabindex="-1">Order status report</h1>
+      <h1 id="fulfillment-title" ref="heading" tabindex="-1">
+        {{ REPORT_TITLE.ORDER_FULFILLMENT }}
+      </h1>
       <p>Review fulfillment progress and order totals by business order date.</p>
     </header>
 
@@ -186,7 +190,7 @@ onScopeDispose(() => requests.abort())
     </DirectoryPanel>
 
     <DirectoryPanel v-if="loading || error" class="report-state">
-      <DirectoryState v-if="loading" kind="loading" message="Loading report…" />
+      <ReportLoadingState v-if="loading" />
       <DirectoryState v-else kind="error" :message="errorMessage">
         <template v-if="![403, 422].includes(error.status)" #actions>
           <VBtn type="button" variant="outlined" class="text-none report-retry" @click="load()">
@@ -267,7 +271,7 @@ onScopeDispose(() => requests.abort())
               v-if="result.lastPage > 1"
               :current-page="result.currentPage"
               :last-page="result.lastPage"
-              label="Order status report pagination"
+              :label="`${REPORT_TITLE.ORDER_FULFILLMENT} pagination`"
               @page-change="changePage"
             />
           </footer>

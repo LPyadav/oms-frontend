@@ -1,8 +1,8 @@
-import { readPaginatedResource } from './pagination'
+import { createPageParams, readPaginatedResource } from './pagination'
 
 export async function loadCatalogPage(request, { resource, isEntry }, query, signal) {
-  const { page, search, isActive } = query
-  const params = new URLSearchParams({ page: String(page) })
+  const { page, perPage, search, isActive } = query
+  const params = createPageParams(page, perPage)
   if (search) params.set('search', search)
   if (isActive !== null) params.set('is_active', isActive ? '1' : '0')
 

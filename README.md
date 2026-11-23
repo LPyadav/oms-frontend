@@ -27,6 +27,8 @@ accepts both the wrapped and original Laravel health responses. Deploy
 
 ## Workflows
 
+Paginated listings show up to 10 rows per page.
+
 | Area                   | What to verify                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Authentication         | Sign in, restore on refresh, and return to an authorized deep link after expiry. Open the profile menu to change your password or sign out. Changing a password revokes all tokens and requires sign-in again.                                                      |
@@ -35,7 +37,7 @@ accepts both the wrapped and original Laravel health responses. Deploy
 | Customers and products | Search and manage catalog entries. Customer detail shows scoped order counts, currency-specific values, and recent orders. Review fresh counts after a stock conflict.                                                                                              |
 | Orders                 | As Manager, create an order with multiple products, discounts and tax, assign it, confirm it, and inspect the saved totals and stock change. Sign in as its Staff assignee and progress through permitted stages. Verify an unrelated Staff account cannot open it. |
 | Notifications          | Verify an assignment, confirmation, or cancellation in the recipient inbox. Check the unread badge, mark one, and mark all.                                                                                                                                         |
-| Dashboard and reports  | As Admin or Manager with permission, verify KPIs and revenue. Use Orders → Order status report to review fulfillment by order date. Use Sales & Tax to review completed orders by completion date in the reporting timezone.                                        |
+| Dashboard and reports  | As Admin or Manager with permission, verify KPIs and revenue. Under Reports, use Order/Fulfillment report for order dates and Sales/Tax report for completion dates in the reporting timezone.                                                                      |
 
 ## Testing and build
 

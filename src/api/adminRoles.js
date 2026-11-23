@@ -1,4 +1,5 @@
 import { ApiError } from './client'
+import { createPageParams } from './pagination'
 
 const rolesPath = '/api/admin/roles'
 
@@ -20,8 +21,9 @@ function isRole(role) {
   )
 }
 
-export async function loadRolePage(request, page, signal) {
-  const { data, meta } = await request(`${rolesPath}?page=${page}`, { signal })
+export async function loadRolePage(request, { page, perPage }, signal) {
+  const params = createPageParams(page, perPage)
+  const { data, meta } = await request(`${rolesPath}?${params}`, { signal })
   if (
     !Array.isArray(data?.roles) ||
     !data.roles.every(isRole) ||
@@ -39,7 +41,7 @@ export async function loadRoleNames(request, signal) {
   let lastPage = 1
 
   for (let page = 1; page <= lastPage; page += 1) {
-    const result = await loadRolePage(request, page, signal)
+    const result = await loadRolePage(request, { page }, signal)
     if (signal.aborted) return []
 
     for (const { name } of result.roles) names.add(name)

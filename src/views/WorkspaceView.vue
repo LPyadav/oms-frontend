@@ -56,17 +56,7 @@ onMounted(() => heading.value?.focus({ preventScroll: true }))
         variant="outlined"
         height="48"
       >
-        Order status report
-      </VBtn>
-      <VBtn
-        v-if="canViewReports"
-        :to="{ name: 'report-sales-tax' }"
-        class="text-none"
-        color="primary"
-        variant="outlined"
-        height="48"
-      >
-        Sales &amp; Tax report
+        Reports
       </VBtn>
       <VBtn
         v-if="canManageUsers"

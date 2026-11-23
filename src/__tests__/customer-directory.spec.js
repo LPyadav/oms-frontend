@@ -109,8 +109,8 @@ it('retries the requested page and filters after an API error', async () => {
   expect(directory.error.value.status).toBe(429)
   await directory.load()
   expect(request.mock.calls.map(([url]) => url)).toEqual([
-    '/api/customers?page=2&search=North&is_active=0',
-    '/api/customers?page=2&search=North&is_active=0',
+    '/api/customers?page=2&per_page=10&search=North&is_active=0',
+    '/api/customers?page=2&per_page=10&search=North&is_active=0',
   ])
   expect(directory.query.value).toEqual(interval)
   expect(directory.error.value).toBeNull()
