@@ -15,4 +15,5 @@ export const AUTH_PERMISSION = Object.freeze({
   MANAGE_ROLES: 'roles.manage',
   VIEW_ACCESS_AUDIT: 'audit.view',
   VIEW_DASHBOARD: 'dashboard.view',
+  VIEW_REPORTS: 'reports.view',
 })

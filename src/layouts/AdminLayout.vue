@@ -112,6 +112,14 @@ function focusMain() {
           @click="mobileNavigationOpen = false"
         />
         <VListItem
+          v-if="auth.canViewReports"
+          :to="{ name: 'report-orders' }"
+          :prepend-icon="aliases.file"
+          title="Order Fulfillment"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListItem
           v-if="auth.canManageUsers"
           :to="{ name: 'admin-users' }"
           title="Users"
