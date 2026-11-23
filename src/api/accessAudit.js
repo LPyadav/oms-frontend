@@ -1,5 +1,5 @@
 import { ApiError } from './client'
-import { readPaginatedResource } from './pagination'
+import { createPageParams, readPaginatedResource } from './pagination'
 
 const auditPath = '/api/admin/access-audit-logs'
 const auditTargets = new Set(['user', 'role'])
@@ -24,10 +24,10 @@ function isAuditLog(log) {
 
 export async function loadAccessAuditPage(
   request,
-  { page, action, actorId, targetType, targetId },
+  { page, perPage, action, actorId, targetType, targetId },
   signal,
 ) {
-  const params = new URLSearchParams({ page: String(page) })
+  const params = createPageParams(page, perPage)
   if (action) params.set('action', action)
   if (actorId) params.set('actor_id', String(actorId))
   if (targetType) params.set('target_type', targetType)

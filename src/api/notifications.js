@@ -1,5 +1,5 @@
 import { ApiError } from './client'
-import { readPaginatedResource } from './pagination'
+import { createPageParams, readPaginatedResource } from './pagination'
 
 const notificationsPath = '/api/notifications'
 
@@ -30,8 +30,8 @@ function isNotification(notification) {
   )
 }
 
-export async function loadNotificationPage(request, { page, status = null }, signal) {
-  const params = new URLSearchParams({ page: String(page) })
+export async function loadNotificationPage(request, { page, perPage, status = null }, signal) {
+  const params = createPageParams(page, perPage)
   if (status !== null) params.set('status', status)
 
   const response = await request(`${notificationsPath}?${params}`, { signal })

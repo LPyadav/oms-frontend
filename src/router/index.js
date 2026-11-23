@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { AUTH_STATUS } from '../constants/auth'
+import { REPORT_TITLE } from '../constants/reports'
 import { useAuthStore } from '../stores/auth'
 import { loginLocation, signedInLocation } from './authRedirect'
 
@@ -41,19 +42,24 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         path: '/reports',
         component: workspaceLayout,
         redirect: { name: 'report-orders' },
-        meta: { requiresAuth: true, sectionTitle: 'Reports', requiresReportsView: true },
+        meta: {
+          requiresAuth: true,
+          sectionTitle: 'Reports',
+          requiresReportsView: true,
+          navigationGroup: 'reports',
+        },
         children: [
           {
             path: 'orders',
             name: 'report-orders',
             component: () => import('../views/reports/OrderFulfillmentReportView.vue'),
-            meta: { pageTitle: 'Order status report', navigationGroup: 'orders' },
+            meta: { pageTitle: REPORT_TITLE.ORDER_FULFILLMENT },
           },
           {
             path: 'sales-tax',
             name: 'report-sales-tax',
             component: () => import('../views/reports/SalesTaxReportView.vue'),
-            meta: { pageTitle: 'Sales & Tax' },
+            meta: { pageTitle: REPORT_TITLE.SALES_TAX },
           },
         ],
       },
@@ -124,7 +130,6 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
           requiresAuth: true,
           sectionTitle: 'Order management',
           requiresOrderView: true,
-          navigationGroup: 'orders',
         },
         children: [
           {

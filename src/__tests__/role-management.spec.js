@@ -51,7 +51,10 @@ it('creates a role and selects it from the new last page', async () => {
     '/api/admin/roles',
     expect.objectContaining({ method: 'POST', body: { name: custom.name } }),
   )
-  expect(request).toHaveBeenLastCalledWith('/api/admin/roles?page=2', expect.any(Object))
+  expect(request).toHaveBeenLastCalledWith(
+    '/api/admin/roles?page=2&per_page=10',
+    expect.any(Object),
+  )
 })
 
 it('keeps the selected role and pending permission edits after renaming', async () => {

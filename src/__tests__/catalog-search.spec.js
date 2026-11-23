@@ -34,7 +34,7 @@ it('waits 300 ms from the latest term, trims it, and resets to page 1 with the a
 
   await vi.advanceTimersByTimeAsync(1)
   expect(fetchPage).toHaveBeenCalledExactlyOnceWith(
-    { page: 1, search: 'warehouse', isActive: false },
+    { page: 1, search: 'warehouse', isActive: false, perPage: 10 },
     expect.any(AbortSignal),
   )
 
@@ -49,7 +49,7 @@ it('applies and clears immediately, superseding any queued search', async () => 
   await vi.advanceTimersByTimeAsync(300)
 
   expect(fetchPage).toHaveBeenCalledExactlyOnceWith(
-    { page: 1, search: 'urgent', isActive: true },
+    { page: 1, search: 'urgent', isActive: true, perPage: 10 },
     expect.any(AbortSignal),
   )
   fetchPage.mockClear()
@@ -60,7 +60,7 @@ it('applies and clears immediately, superseding any queued search', async () => 
   await vi.advanceTimersByTimeAsync(300)
 
   expect(fetchPage).toHaveBeenCalledExactlyOnceWith(
-    { page: 1, search: '', isActive: null },
+    { page: 1, search: '', isActive: null, perPage: 10 },
     expect.any(AbortSignal),
   )
 })
@@ -72,13 +72,13 @@ it('keeps a queued search when a page request uses the applied query', async () 
   directory.search.value = 'new term'
   await directory.load({ ...directory.query.value, page: 2 })
   expect(fetchPage).toHaveBeenCalledExactlyOnceWith(
-    { page: 2, search: '', isActive: true },
+    { page: 2, search: '', isActive: true, perPage: 10 },
     expect.any(AbortSignal),
   )
 
   await vi.advanceTimersByTimeAsync(300)
   expect(fetchPage).toHaveBeenLastCalledWith(
-    { page: 1, search: 'new term', isActive: true },
+    { page: 1, search: 'new term', isActive: true, perPage: 10 },
     expect.any(AbortSignal),
   )
   expect(fetchPage).toHaveBeenCalledTimes(2)

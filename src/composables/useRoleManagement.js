@@ -6,6 +6,7 @@ import {
   renameRole,
   replaceRolePermissions,
 } from '../api/adminRoles'
+import { DIRECTORY_PAGE_SIZE } from '../constants/pagination'
 import { getDirectoryErrorMessage } from '../utils/directory'
 
 const builtInRoles = new Set(['admin', 'manager', 'staff'])
@@ -104,7 +105,11 @@ export function useRoleManagement({ request, signal }) {
     pageLoading.value = true
     pageError.value = ''
     try {
-      const result = await loadRolePage(request, number, signal)
+      const result = await loadRolePage(
+        request,
+        { page: number, perPage: DIRECTORY_PAGE_SIZE },
+        signal,
+      )
       if (signal.aborted) return null
 
       page.value = result

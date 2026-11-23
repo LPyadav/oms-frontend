@@ -5,7 +5,7 @@ import {
   ORDER_STATUS,
 } from '../constants/orders'
 import { ApiError } from './client'
-import { readPaginatedResource } from './pagination'
+import { createPageParams, readPaginatedResource } from './pagination'
 
 function isParty(party) {
   return (
@@ -51,6 +51,7 @@ export function isOrderSummary(order) {
 export async function loadOrderPage(request, query, signal) {
   const {
     page,
+    perPage,
     search,
     status,
     priority,
@@ -61,7 +62,9 @@ export async function loadOrderPage(request, query, signal) {
     sort,
     direction,
   } = query
-  const params = new URLSearchParams({ page: String(page), sort, direction })
+  const params = createPageParams(page, perPage)
+  params.set('sort', sort)
+  params.set('direction', direction)
   if (search) params.set('search', search)
   if (status) params.set('status', status)
   if (priority) params.set('priority', priority)

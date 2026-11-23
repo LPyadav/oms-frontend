@@ -13,6 +13,7 @@ import { VNavigationDrawer } from 'vuetify/components/VNavigationDrawer'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import AccountMenu from '../components/auth/AccountMenu.vue'
 import NotificationBell from '../components/notifications/NotificationBell.vue'
+import { REPORT_TITLE } from '../constants/reports'
 import { useAuthStore } from '../stores/auth'
 
 const navigationIcons = {
@@ -21,7 +22,7 @@ const navigationIcons = {
     'M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3',
     'M9 3h6v4H9zM8 12h8m-8 4h8',
   ],
-  salesTax: ['M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21z', 'm9 15 6-6M9 9h.01M15 15h.01'],
+  reports: ['M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21z', 'm9 15 6-6M9 9h.01M15 15h.01'],
   users: [
     'M12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
     'M3 19v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 4.2a3 3 0 0 1 0 5.6M21 19v-2a4 4 0 0 0-3.2-3.9',
@@ -143,11 +144,20 @@ function focusMain() {
           rounded="lg"
           @click="mobileNavigationOpen = false"
         />
-        <VListGroup
+        <VListItem
           v-if="auth.canViewOrders"
-          value="orders"
-          title="Orders"
+          :to="{ name: 'orders' }"
+          :active="route.meta.requiresOrderView === true"
           :prepend-icon="navigationIcons.orders"
+          title="Orders"
+          rounded="lg"
+          @click="mobileNavigationOpen = false"
+        />
+        <VListGroup
+          v-if="auth.canViewReports"
+          value="reports"
+          title="Reports"
+          :prepend-icon="navigationIcons.reports"
           :expand-icon="aliases.expand"
           :collapse-icon="aliases.collapse"
         >
@@ -159,36 +169,24 @@ function focusMain() {
               type="button"
               role="button"
               :aria-expanded="isOpen"
-              :active="!isOpen && route.meta.navigationGroup === 'orders'"
+              :active="!isOpen && route.meta.navigationGroup === 'reports'"
               :ripple="false"
               rounded="lg"
             />
           </template>
           <VListItem
-            :to="{ name: 'orders' }"
-            :active="
-              route.meta.navigationGroup === 'orders' && route.meta.requiresOrderView === true
-            "
-            title="All orders"
+            :to="{ name: 'report-orders' }"
+            :title="REPORT_TITLE.ORDER_FULFILLMENT"
             rounded="lg"
             @click="mobileNavigationOpen = false"
           />
           <VListItem
-            v-if="auth.canViewReports"
-            :to="{ name: 'report-orders' }"
-            title="Order status report"
+            :to="{ name: 'report-sales-tax' }"
+            :title="REPORT_TITLE.SALES_TAX"
             rounded="lg"
             @click="mobileNavigationOpen = false"
           />
         </VListGroup>
-        <VListItem
-          v-if="auth.canViewReports"
-          :to="{ name: 'report-sales-tax' }"
-          :prepend-icon="navigationIcons.salesTax"
-          title="Sales &amp; Tax"
-          rounded="lg"
-          @click="mobileNavigationOpen = false"
-        />
         <VListItem
           v-if="auth.canManageUsers"
           :to="{ name: 'admin-users' }"

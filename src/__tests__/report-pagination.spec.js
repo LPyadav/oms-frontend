@@ -1,7 +1,7 @@
 import { expect, it, vi } from 'vitest'
 import { useReportDirectory } from '../composables/useReportDirectory'
 
-it('preserves the resolved window across reporting midnight until filters are submitted again', async () => {
+it('requests ten rows per page and preserves the resolved date window across pagination', async () => {
   let currentWindow = { dateFrom: '2026-10-25', dateTo: '2026-11-23' }
   const fetchPage = vi.fn(async ({ dateFrom, dateTo }) =>
     dateFrom && dateTo ? { dateFrom, dateTo } : currentWindow,
@@ -10,11 +10,13 @@ it('preserves the resolved window across reporting midnight until filters are su
   const report = useReportDirectory({ fetchPage, signal, initialQuery: { page: 1 } })
 
   await report.load({ page: 1, customerId: 8 })
+  expect(fetchPage.mock.calls[0][0]).toEqual({ page: 1, customerId: 8, perPage: 10 })
   currentWindow = { dateFrom: '2026-10-26', dateTo: '2026-11-24' }
 
   await report.loadPage(2)
   expect(fetchPage.mock.calls[1][0]).toEqual({
     page: 2,
+    perPage: 10,
     customerId: 8,
     dateFrom: '2026-10-25',
     dateTo: '2026-11-23',
@@ -22,6 +24,6 @@ it('preserves the resolved window across reporting midnight until filters are su
   expect(report.result.value).toEqual({ dateFrom: '2026-10-25', dateTo: '2026-11-23' })
 
   await report.load({ page: 1 })
-  expect(fetchPage.mock.calls[2][0]).toEqual({ page: 1 })
+  expect(fetchPage.mock.calls[2][0]).toEqual({ page: 1, perPage: 10 })
   expect(report.result.value).toEqual(currentWindow)
 })
