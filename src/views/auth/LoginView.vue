@@ -49,6 +49,15 @@ async function retrySession() {
         <p>Use your work account to access OMS.</p>
       </header>
 
+      <VAlert
+        v-if="auth.passwordWasChanged"
+        type="success"
+        :icon="false"
+        variant="tonal"
+        role="status"
+      >
+        Password changed. Sign in with your new password.
+      </VAlert>
       <VAlert v-if="feedback" type="error" :icon="false" variant="tonal" role="alert">
         {{ feedback }}
       </VAlert>

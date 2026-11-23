@@ -10,7 +10,7 @@ import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import OrderLookupField from '../../components/orders/OrderLookupField.vue'
 import SalesTaxTable from '../../components/reports/SalesTaxTable.vue'
-import { usePagedDirectory } from '../../composables/usePagedDirectory'
+import { useReportDirectory } from '../../composables/useReportDirectory'
 import { SALES_TAX_AMOUNTS } from '../../constants/reports'
 import { useAuthStore } from '../../stores/auth'
 import { formatDirectoryPageRange, getDirectoryErrorMessage } from '../../utils/directory'
@@ -23,7 +23,7 @@ const resultsHeading = useTemplateRef('orders-heading')
 const requests = new AbortController()
 const emptyFields = { dateFrom: '', dateTo: '', customer: null, product: null, productId: '' }
 const fields = reactive({ ...emptyFields })
-const { query, result, error, loading, load } = usePagedDirectory({
+const { query, result, error, loading, load, loadPage } = useReportDirectory({
   fetchPage: (query, signal) => loadSalesTaxReport(auth.request, query, signal),
   initialQuery: { page: 1 },
   signal: requests.signal,
@@ -94,7 +94,7 @@ function resetFilters() {
 }
 
 async function changePage(page) {
-  if (await load({ ...query.value, page })) {
+  if (await loadPage(page)) {
     await nextTick()
     resultsHeading.value?.focus()
   }

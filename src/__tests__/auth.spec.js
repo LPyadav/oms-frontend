@@ -39,6 +39,53 @@ describe('OMS authentication', () => {
     vi.unstubAllGlobals()
   })
 
+  it('signs out locally after the server changes the password and revokes the token', async () => {
+    fetchMock
+      .mockResolvedValueOnce(loginResponse())
+      .mockResolvedValueOnce(success({ user: admin }))
+      .mockResolvedValueOnce(success(null))
+    const auth = useAuthStore()
+    await auth.login({ email: admin.email, password: 'Previous password' })
+
+    const passwords = {
+      current_password: 'Previous password',
+      password: 'Replacement password',
+      password_confirmation: 'Replacement password',
+    }
+    await auth.changePassword(passwords)
+
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      '/api/me/password',
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify(passwords) }),
+    )
+    expect(auth.isAuthenticated).toBe(false)
+    expect(auth.signedOutExplicitly).toBe(true)
+    expect(auth.passwordWasChanged).toBe(true)
+    expect(sessionStorage.getItem('oms.session')).toBeNull()
+  })
+
+  it('retains the verified session when the server rejects the current password', async () => {
+    const fields = { current_password: ['The password is incorrect.'] }
+    fetchMock
+      .mockResolvedValueOnce(loginResponse())
+      .mockResolvedValueOnce(success({ user: admin }))
+      .mockResolvedValueOnce(failure(422, 'VALIDATION_FAILED', fields))
+    const auth = useAuthStore()
+    await auth.login({ email: admin.email, password: 'Previous password' })
+
+    await expect(
+      auth.changePassword({
+        current_password: 'Wrong password',
+        password: 'Replacement password',
+        password_confirmation: 'Replacement password',
+      }),
+    ).rejects.toMatchObject({ status: 422, fields })
+
+    expect(auth.isAuthenticated).toBe(true)
+    expect(auth.passwordWasChanged).toBe(false)
+    expect(sessionStorage.getItem('oms.session')).not.toBeNull()
+  })
+
   it('replaces cached grants using the current profile after a self-assignment', async () => {
     const updated = { ...profile, roles: ['manager'], permissions: [] }
     fetchMock
