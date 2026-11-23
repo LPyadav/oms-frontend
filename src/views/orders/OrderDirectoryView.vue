@@ -15,12 +15,12 @@ import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VCard } from 'vuetify/components/VCard'
 import { VChip } from 'vuetify/components/VChip'
-import { VProgressLinear } from 'vuetify/components/VProgressLinear'
 import { VSelect } from 'vuetify/components/VSelect'
 import { VTable } from 'vuetify/components/VTable'
 import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { loadOrderFilterPartyPage, loadOrderPage, loadOrdersCsv } from '../../api/orders'
+import DirectoryLoadingState from '../../components/directory/DirectoryLoadingState.vue'
 import OrderLookupField from '../../components/orders/OrderLookupField.vue'
 import { usePagedDirectory } from '../../composables/usePagedDirectory'
 import { FIRST_ORDER_PAGE, ORDER_PRIORITY, ORDER_SORT, ORDER_STATUS } from '../../constants/orders'
@@ -347,10 +347,7 @@ onScopeDispose(() => {
         </VBtn>
       </form>
 
-      <div v-if="loading" class="orders-state" role="status">
-        <VProgressLinear color="primary" indeterminate aria-hidden="true" />
-        <p>Loading orders…</p>
-      </div>
+      <DirectoryLoadingState v-if="loading" message="Loading orders…" />
       <div v-else-if="error" class="orders-state">
         <VAlert type="error" variant="tonal" :icon="false" role="alert">{{ errorMessage }}</VAlert>
         <VBtn

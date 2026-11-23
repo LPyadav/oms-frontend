@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { VBtn } from 'vuetify/components/VBtn'
 import { formatDirectoryPageRange, getDirectoryErrorMessage } from '../../utils/directory'
+import DirectoryLoadingState from './DirectoryLoadingState.vue'
 import DirectoryPagination from './DirectoryPagination.vue'
 import DirectoryPanel from './DirectoryPanel.vue'
 import DirectoryState from './DirectoryState.vue'
@@ -33,12 +34,7 @@ const pageRange = computed(() =>
   <DirectoryPanel>
     <slot name="filters" />
 
-    <DirectoryState
-      v-if="loading"
-      class="catalog-state"
-      kind="loading"
-      :message="'Loading ' + collectionName + '…'"
-    />
+    <DirectoryLoadingState v-if="loading" :message="'Loading ' + collectionName + '…'" />
     <DirectoryState v-else-if="error" class="catalog-state" kind="error" :message="errorMessage">
       <template #actions>
         <VBtn

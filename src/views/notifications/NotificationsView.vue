@@ -7,6 +7,7 @@ import { VChip } from 'vuetify/components/VChip'
 import { VIcon } from 'vuetify/components/VIcon'
 import { VPagination } from 'vuetify/components/VPagination'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import DirectoryLoadingState from '../../components/directory/DirectoryLoadingState.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import { useNotificationInbox } from '../../composables/useNotificationInbox'
 
@@ -146,11 +147,10 @@ onMounted(() => {
         </VAlert>
       </div>
 
-      <DirectoryState
+      <DirectoryLoadingState
         v-if="loading"
-        kind="loading"
+        layout="list-two-line"
         message="Loading notifications…"
-        class="notification-state"
       />
       <DirectoryState
         v-else-if="error"

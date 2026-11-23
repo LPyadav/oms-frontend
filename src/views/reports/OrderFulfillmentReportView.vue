@@ -9,10 +9,10 @@ import { loadOrderFilterPartyPage } from '../../api/orders'
 import { loadOrderFulfillmentCsv, loadOrderFulfillmentReport } from '../../api/reports'
 import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
 import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
+import DirectoryLoadingState from '../../components/directory/DirectoryLoadingState.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import OrderLookupField from '../../components/orders/OrderLookupField.vue'
 import OrderFulfillmentTable from '../../components/reports/OrderFulfillmentTable.vue'
-import ReportLoadingState from '../../components/reports/ReportLoadingState.vue'
 import { useReportDirectory } from '../../composables/useReportDirectory'
 import { ORDER_STATUS } from '../../constants/orders'
 import { REPORT_TITLE } from '../../constants/reports'
@@ -221,7 +221,7 @@ onScopeDispose(() => requests.abort())
     </DirectoryPanel>
 
     <DirectoryPanel v-if="loading || error" class="report-state">
-      <ReportLoadingState v-if="loading" />
+      <DirectoryLoadingState v-if="loading" message="Loading report…" />
       <DirectoryState v-else kind="error" :message="errorMessage">
         <template v-if="![403, 422].includes(error.status)" #actions>
           <VBtn type="button" variant="outlined" class="text-none report-retry" @click="load()">

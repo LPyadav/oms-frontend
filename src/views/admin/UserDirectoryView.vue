@@ -8,6 +8,7 @@ import { VTextField } from 'vuetify/components/VTextField'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
 import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
 import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
+import DirectoryLoadingState from '../../components/directory/DirectoryLoadingState.vue'
 import DirectoryState from '../../components/directory/DirectoryState.vue'
 import { loadAdminUser, loadAdminUserPage } from '../../api/adminUsers'
 import AdminUserAccountDialog from '../../components/admin/AdminUserAccountDialog.vue'
@@ -328,12 +329,7 @@ onScopeDispose(() => requests.abort())
         </div>
       </form>
 
-      <DirectoryState
-        v-if="loading"
-        class="directory-state"
-        kind="loading"
-        message="Loading users…"
-      />
+      <DirectoryLoadingState v-if="loading" message="Loading users…" />
 
       <DirectoryState
         v-else-if="error"
