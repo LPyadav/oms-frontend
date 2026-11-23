@@ -7,27 +7,47 @@ import { VAvatar } from 'vuetify/components/VAvatar'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VIcon } from 'vuetify/components/VIcon'
 import { VLayout } from 'vuetify/components/VLayout'
-import { VList, VListItem } from 'vuetify/components/VList'
+import { VList, VListGroup, VListItem } from 'vuetify/components/VList'
 import { VMain } from 'vuetify/components/VMain'
 import { VNavigationDrawer } from 'vuetify/components/VNavigationDrawer'
 import { aliases } from 'vuetify/iconsets/mdi-svg'
+import AccountMenu from '../components/auth/AccountMenu.vue'
 import NotificationBell from '../components/notifications/NotificationBell.vue'
 import { useAuthStore } from '../stores/auth'
-import { getAccountInitials } from '../utils/accountInitials'
+
+const navigationIcons = {
+  dashboard: ['M3.5 3.5h6v9h-6zM14.5 3.5h6v5h-6zM3.5 16.5h6v4h-6zM14.5 12.5h6v8h-6z'],
+  orders: [
+    'M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3',
+    'M9 3h6v4H9zM8 12h8m-8 4h8',
+  ],
+  salesTax: ['M5 3h14v18l-3.5-2-3.5 2-3.5-2L5 21z', 'm9 15 6-6M9 9h.01M15 15h.01'],
+  users: [
+    'M12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+    'M3 19v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 4.2a3 3 0 0 1 0 5.6M21 19v-2a4 4 0 0 0-3.2-3.9',
+  ],
+  roles: ['M12 22C7 20 4 16 4 11V6l8-4 8 4v5c0 5-3 9-8 11Z', 'm9 12 2 2 4-4'],
+  audit: ['M4 11a8 8 0 1 1 1.7 5.9M4 6v5h5', 'M12 7.5v5l3 1.5'],
+  customers: [
+    'M3 5h18v14H3z',
+    'M10.5 9.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM5.5 16v-.5a3 3 0 0 1 6 0v.5M14 9h4m-4 4h4',
+  ],
+  products: [
+    'M12 3 3.5 7.5v9L12 21l8.5-4.5v-9L12 3Z',
+    'M3.5 7.5 12 12l8.5-4.5M12 12v9M7.8 5.3l8.5 4.5v3',
+  ],
+  workspace: ['M3.5 10 12 3l8.5 7M5.5 8.5V21h4v-6h5v6h4V8.5'],
+}
 
 const auth = useAuthStore()
 const route = useRoute()
 const { mdAndUp } = useDisplay()
 const mobileNavigationOpen = ref(false)
+const openNavigationGroups = ref([])
 const menuButton = useTemplateRef('menuButton')
 const closeButton = useTemplateRef('closeButton')
 const contentScroll = useTemplateRef('contentScroll')
 const sectionTitle = computed(() => route.meta.sectionTitle)
-const accountRole = computed(() => {
-  const roles = auth.user?.roles ?? []
-  const role = roles.find((role) => role.toLowerCase() === 'admin') ?? roles[0]
-  return role ? role.charAt(0).toUpperCase() + role.slice(1) : ''
-})
 
 const drawerOpen = computed({
   get: () => mdAndUp.value || mobileNavigationOpen.value,
@@ -59,6 +79,17 @@ watch(
   { flush: 'post' },
 )
 
+watch(
+  () => route.path,
+  () => {
+    const group = route.meta.navigationGroup
+    if (group && !openNavigationGroups.value.includes(group)) {
+      openNavigationGroups.value = [...openNavigationGroups.value, group]
+    }
+  },
+  { immediate: true },
+)
+
 function focusMain() {
   contentScroll.value?.focus({ preventScroll: true })
 }
@@ -71,14 +102,15 @@ function focusMain() {
     <VNavigationDrawer
       id="admin-navigation"
       v-model="drawerOpen"
-      :aria-label="sectionTitle"
+      aria-label="Workspace navigation"
+      class="admin-drawer"
       :mobile="!mdAndUp"
       :permanent="mdAndUp"
       :temporary="!mdAndUp"
       :retain-focus="!mdAndUp"
       disable-resize-watcher
       color="admin-navigation"
-      width="212"
+      width="232"
       @keydown.esc="mobileNavigationOpen = false"
     >
       <template #prepend>
@@ -88,7 +120,7 @@ function focusMain() {
           </VAvatar>
           <div>
             <strong>OMS</strong>
-            <span>{{ sectionTitle }}</span>
+            <span>Order management</span>
           </div>
           <VBtn
             v-if="!mdAndUp"
@@ -96,33 +128,63 @@ function focusMain() {
             class="ms-auto"
             variant="text"
             :icon="aliases.close"
-            :aria-label="`Close ${sectionTitle.toLowerCase()} menu`"
+            aria-label="Close workspace menu"
             @click="mobileNavigationOpen = false"
           />
         </div>
       </template>
 
-      <VList nav class="admin-links">
+      <VList v-model:opened="openNavigationGroups" open-strategy="multiple" nav class="admin-links">
         <VListItem
           v-if="auth.canViewDashboard"
           :to="{ name: 'dashboard' }"
-          :prepend-icon="aliases.menu"
+          :prepend-icon="navigationIcons.dashboard"
           title="Dashboard"
           rounded="lg"
           @click="mobileNavigationOpen = false"
         />
-        <VListItem
-          v-if="auth.canViewReports"
-          :to="{ name: 'report-orders' }"
-          :prepend-icon="aliases.file"
-          title="Order Fulfillment"
-          rounded="lg"
-          @click="mobileNavigationOpen = false"
-        />
+        <VListGroup
+          v-if="auth.canViewOrders"
+          value="orders"
+          title="Orders"
+          :prepend-icon="navigationIcons.orders"
+          :expand-icon="aliases.expand"
+          :collapse-icon="aliases.collapse"
+        >
+          <template #activator="{ props, isOpen }">
+            <VListItem
+              v-bind="props"
+              :value="null"
+              tag="button"
+              type="button"
+              role="button"
+              :aria-expanded="isOpen"
+              :active="!isOpen && route.meta.navigationGroup === 'orders'"
+              :ripple="false"
+              rounded="lg"
+            />
+          </template>
+          <VListItem
+            :to="{ name: 'orders' }"
+            :active="
+              route.meta.navigationGroup === 'orders' && route.meta.requiresOrderView === true
+            "
+            title="All orders"
+            rounded="lg"
+            @click="mobileNavigationOpen = false"
+          />
+          <VListItem
+            v-if="auth.canViewReports"
+            :to="{ name: 'report-orders' }"
+            title="Order status report"
+            rounded="lg"
+            @click="mobileNavigationOpen = false"
+          />
+        </VListGroup>
         <VListItem
           v-if="auth.canViewReports"
           :to="{ name: 'report-sales-tax' }"
-          :prepend-icon="aliases.file"
+          :prepend-icon="navigationIcons.salesTax"
           title="Sales &amp; Tax"
           rounded="lg"
           @click="mobileNavigationOpen = false"
@@ -130,86 +192,57 @@ function focusMain() {
         <VListItem
           v-if="auth.canManageUsers"
           :to="{ name: 'admin-users' }"
+          :prepend-icon="navigationIcons.users"
           title="Users"
           rounded="lg"
           @click="mobileNavigationOpen = false"
-        >
-          <template #prepend>
-            <svg
-              class="admin-nav-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <circle cx="9" cy="7" r="3" />
-              <path
-                d="M3 19v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M16 4.2a3 3 0 0 1 0 5.6M21 19v-2a4 4 0 0 0-3.2-3.9"
-              />
-            </svg>
-          </template>
-        </VListItem>
+        />
         <VListItem
           v-if="auth.canManageRoles"
           :to="{ name: 'admin-roles' }"
+          :prepend-icon="navigationIcons.roles"
           title="Roles &amp; permissions"
           rounded="lg"
           @click="mobileNavigationOpen = false"
+        />
+        <VListGroup
+          v-if="auth.canViewAccessAudit"
+          value="audit"
+          title="Audit"
+          :prepend-icon="navigationIcons.audit"
+          :expand-icon="aliases.expand"
+          :collapse-icon="aliases.collapse"
         >
-          <template #prepend>
-            <svg
-              class="admin-nav-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.7"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M12 22C7 20 4 16 4 11V6l8-4 8 4v5c0 5-3 9-8 11Z" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
+          <template #activator="{ props, isOpen }">
+            <VListItem
+              v-bind="props"
+              :value="null"
+              tag="button"
+              type="button"
+              role="button"
+              :aria-expanded="isOpen"
+              :active="!isOpen && route.meta.navigationGroup === 'audit'"
+              :ripple="false"
+              rounded="lg"
+            />
           </template>
-        </VListItem>
-        <VListItem
-          v-if="auth.canViewAccessAudit"
-          :to="{ name: 'admin-access-audit' }"
-          :prepend-icon="aliases.info"
-          title="Access audit"
-          rounded="lg"
-          @click="mobileNavigationOpen = false"
-        />
-        <VListItem
-          v-if="auth.canViewAccessAudit"
-          :to="{ name: 'admin-operational-audit' }"
-          :prepend-icon="aliases.info"
-          title="Operational audit"
-          rounded="lg"
-          @click="mobileNavigationOpen = false"
-        />
-        <VListItem
-          :to="{ name: 'account-password' }"
-          :prepend-icon="aliases.info"
-          title="Change password"
-          rounded="lg"
-          @click="mobileNavigationOpen = false"
-        />
-        <VListItem
-          v-if="auth.canViewOrders"
-          :to="{ name: 'orders' }"
-          :prepend-icon="aliases.calendar"
-          title="Orders"
-          rounded="lg"
-          @click="mobileNavigationOpen = false"
-        />
+          <VListItem
+            :to="{ name: 'admin-access-audit' }"
+            title="Access audit"
+            rounded="lg"
+            @click="mobileNavigationOpen = false"
+          />
+          <VListItem
+            :to="{ name: 'admin-operational-audit' }"
+            title="Operational audit"
+            rounded="lg"
+            @click="mobileNavigationOpen = false"
+          />
+        </VListGroup>
         <VListItem
           v-if="auth.canViewCustomers"
           :to="{ name: 'catalog-customers' }"
-          :prepend-icon="aliases.search"
+          :prepend-icon="navigationIcons.customers"
           title="Customers"
           rounded="lg"
           @click="mobileNavigationOpen = false"
@@ -217,7 +250,7 @@ function focusMain() {
         <VListItem
           v-if="auth.canViewProducts"
           :to="{ name: 'catalog-products' }"
-          :prepend-icon="aliases.menu"
+          :prepend-icon="navigationIcons.products"
           title="Products"
           rounded="lg"
           @click="mobileNavigationOpen = false"
@@ -225,10 +258,10 @@ function focusMain() {
       </VList>
 
       <template #append>
-        <VList nav class="admin-links">
+        <VList nav class="admin-links admin-footer-links">
           <VListItem
             :to="{ name: 'workspace' }"
-            :prepend-icon="aliases.arrowleft"
+            :prepend-icon="navigationIcons.workspace"
             title="Workspace"
             rounded="lg"
           />
@@ -244,7 +277,7 @@ function focusMain() {
             ref="menuButton"
             :icon="aliases.menu"
             variant="text"
-            :aria-label="`Open ${sectionTitle.toLowerCase()} menu`"
+            aria-label="Open workspace menu"
             aria-controls="admin-navigation"
             :aria-expanded="mobileNavigationOpen"
             @click="mobileNavigationOpen = true"
@@ -261,21 +294,7 @@ function focusMain() {
 
         <div class="admin-header-actions">
           <NotificationBell v-if="auth.canViewOrders" />
-          <div v-if="auth.user" class="admin-account" role="group" aria-label="Signed-in account">
-            <VAvatar
-              size="34"
-              color="primary"
-              variant="tonal"
-              class="account-avatar"
-              aria-hidden="true"
-            >
-              {{ getAccountInitials(auth.user.name) }}
-            </VAvatar>
-            <div class="account-label">
-              <strong>{{ auth.user.name }}</strong>
-              <span v-if="accountRole">{{ accountRole }}</span>
-            </div>
-          </div>
+          <AccountMenu />
         </div>
       </div>
     </VAppBar>
@@ -327,11 +346,29 @@ function focusMain() {
   transform: none;
 }
 
+.admin-drawer {
+  background-image: linear-gradient(165deg, rgba(var(--v-theme-primary), 0.24), transparent 58%);
+}
+
+.admin-drawer :deep(.v-navigation-drawer__content) {
+  overscroll-behavior-y: contain;
+  scroll-padding-block: 12px;
+  scrollbar-color: rgba(var(--v-theme-on-admin-navigation), 0.45) transparent;
+  scrollbar-gutter: stable;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .admin-drawer :deep(.v-navigation-drawer__content) {
+    scroll-behavior: smooth;
+  }
+}
+
 .admin-brand {
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  padding: 23px 14px 22px 22px;
+  padding: 20px 14px 20px 20px;
+  border-block-end: 1px solid rgba(var(--v-theme-on-admin-navigation), 0.12);
 }
 
 .admin-brand strong {
@@ -343,7 +380,7 @@ function focusMain() {
 .admin-brand div > span {
   display: block;
   font-size: 0.75rem;
-  opacity: 0.84;
+  color: rgba(var(--v-theme-on-admin-navigation), 0.78);
 }
 
 .brand-mark {
@@ -358,12 +395,46 @@ function focusMain() {
 }
 
 .admin-links {
-  padding-inline: 14px;
+  padding: 12px 14px;
+  background: transparent;
   color: inherit;
+}
+
+.admin-footer-links {
+  border-block-start: 1px solid rgba(var(--v-theme-on-admin-navigation), 0.12);
 }
 
 .admin-links :deep(.v-list-item) {
   min-height: 44px;
+}
+
+.admin-links :deep(.v-list-item__title) {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-links :deep(.v-list-item:focus-visible) {
+  outline: 2px solid rgb(var(--v-theme-on-admin-navigation));
+  outline-offset: -2px;
+}
+
+.admin-links :deep(.v-list-group__header) {
+  width: 100%;
+  text-align: start;
+}
+
+.admin-links :deep(.v-list-group__header .v-list-item__append > .v-icon) {
+  font-size: 18px;
+}
+
+.admin-links :deep(.v-list-group__items) {
+  margin-inline-start: 17px;
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid rgba(var(--v-theme-on-admin-navigation), 0.24);
+}
+
+.admin-links :deep(.v-list-group__items .v-list-item) {
+  padding-inline: 12px;
 }
 
 .admin-links :deep(.v-list-item__prepend) {
@@ -374,17 +445,28 @@ function focusMain() {
   display: none;
 }
 
-.admin-nav-icon,
 .admin-links :deep(.v-list-item__prepend > .v-icon) {
   width: 18px;
   height: 18px;
   font-size: 18px;
+  opacity: 0.85;
+}
+
+.admin-links :deep(.v-list-item__prepend .v-icon__svg) {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .admin-links :deep(.v-list-item--active) {
   --v-activated-opacity: 0;
-  background: rgba(var(--v-theme-on-admin-navigation), 0.1);
-  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-admin-navigation), 0.19);
+  background: rgba(var(--v-theme-primary), 0.44);
+  box-shadow: inset 0 0 0 1px rgba(var(--v-theme-on-admin-navigation), 0.25);
+}
+
+.admin-links :deep(.v-list-item--active .v-list-item__title) {
   font-weight: 600;
 }
 
@@ -407,8 +489,7 @@ function focusMain() {
   gap: clamp(4px, 2vw, 12px);
 }
 
-.admin-location,
-.admin-account {
+.admin-location {
   display: flex;
   min-width: 0;
   gap: 8px;
@@ -418,30 +499,6 @@ function focusMain() {
 
 .admin-location-parent {
   color: rgba(var(--v-theme-on-surface), 0.74);
-}
-
-.account-avatar {
-  flex: none;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.account-label {
-  min-width: 0;
-  max-width: 170px;
-}
-
-.account-label strong,
-.account-label span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.account-label span {
-  color: rgba(var(--v-theme-on-surface), 0.74);
-  font-size: 0.75rem;
 }
 
 .admin-content {
@@ -467,10 +524,6 @@ function focusMain() {
 @media (max-width: 440px) {
   .admin-location-parent {
     display: none;
-  }
-
-  .account-label {
-    max-width: 112px;
   }
 }
 </style>

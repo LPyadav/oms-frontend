@@ -1,8 +1,8 @@
 <script setup>
 import { storeToRefs } from 'pinia'
-import { onMounted, ref, useTemplateRef } from 'vue'
-import { VAlert } from 'vuetify/components/VAlert'
+import { onMounted, useTemplateRef } from 'vue'
 import { VBtn } from 'vuetify/components/VBtn'
+import AccountMenu from '../components/auth/AccountMenu.vue'
 import NotificationBell from '../components/notifications/NotificationBell.vue'
 import { useAuthStore } from '../stores/auth'
 
@@ -20,24 +20,8 @@ const {
   user,
 } = storeToRefs(auth)
 const heading = useTemplateRef('workspaceHeading')
-const signingOut = ref(false)
-const feedback = ref('')
 
 onMounted(() => heading.value?.focus({ preventScroll: true }))
-
-async function signOut() {
-  if (signingOut.value) return
-
-  signingOut.value = true
-  feedback.value = ''
-  try {
-    await auth.logout()
-  } catch {
-    feedback.value = 'Sign-out could not be completed. Try again.'
-  } finally {
-    signingOut.value = false
-  }
-}
 </script>
 
 <template>
@@ -45,15 +29,15 @@ async function signOut() {
     <section class="workspace-panel" aria-labelledby="workspace-heading">
       <div class="workspace-panel-heading">
         <h1 id="workspace-heading" ref="workspaceHeading" tabindex="-1">OMS workspace</h1>
-        <NotificationBell v-if="canViewOrders" />
+        <div class="workspace-header-actions">
+          <NotificationBell v-if="canViewOrders" />
+          <AccountMenu compact />
+        </div>
       </div>
       <div class="workspace-account">
         <strong>{{ user.name }}</strong>
         <p>{{ user.email }}</p>
       </div>
-      <VAlert v-if="feedback" type="error" :icon="false" variant="tonal" role="alert">
-        {{ feedback }}
-      </VAlert>
       <VBtn
         v-if="canViewDashboard"
         :to="{ name: 'dashboard' }"
@@ -72,7 +56,7 @@ async function signOut() {
         variant="outlined"
         height="48"
       >
-        Order Fulfillment report
+        Order status report
       </VBtn>
       <VBtn
         v-if="canViewReports"
@@ -125,15 +109,6 @@ async function signOut() {
         View operational audit
       </VBtn>
       <VBtn
-        :to="{ name: 'account-password' }"
-        class="text-none"
-        color="primary"
-        variant="outlined"
-        height="48"
-      >
-        Change password
-      </VBtn>
-      <VBtn
         v-if="canViewCustomers"
         :to="{ name: 'catalog-customers' }"
         class="text-none"
@@ -163,17 +138,6 @@ async function signOut() {
       >
         Browse orders
       </VBtn>
-      <VBtn
-        class="text-none"
-        type="button"
-        variant="outlined"
-        height="48"
-        :loading="signingOut"
-        :disabled="signingOut"
-        @click="signOut"
-      >
-        {{ signingOut ? 'Signing out…' : 'Sign out' }}
-      </VBtn>
     </section>
   </main>
 </template>
@@ -201,6 +165,13 @@ async function signOut() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.workspace-header-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
 }
 
 .workspace-panel h1 {

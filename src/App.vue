@@ -22,7 +22,7 @@ watch(
 
 <template>
   <VApp>
-    <div role="status">
+    <div class="session-warning" role="status" aria-atomic="true">
       <VAlert
         v-if="route.meta.requiresAuth && auth.sessionExpiresSoon"
         type="warning"
@@ -30,7 +30,7 @@ watch(
         density="comfortable"
         :icon="false"
         role="presentation"
-        class="session-warning"
+        class="session-warning-alert"
       >
         <p class="session-warning-message">
           <strong>Your session expires soon.</strong> Save your work before it ends.
@@ -43,8 +43,18 @@ watch(
 
 <style scoped>
 .session-warning {
-  inline-size: min(720px, calc(100% - 32px));
-  margin: 16px auto 0;
+  position: fixed;
+  z-index: 999;
+  inset-block-end: max(16px, env(safe-area-inset-bottom));
+  inset-inline-end: 16px;
+  inline-size: min(360px, calc(100% - 32px));
+  pointer-events: none;
+}
+
+.session-warning-alert {
+  border: 1px solid rgba(var(--v-theme-warning), 0.4);
+  background: rgb(var(--v-theme-surface));
+  box-shadow: 0 4px 16px rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .session-warning-message {
