@@ -4,6 +4,7 @@ import {
   ORDER_PRIORITY,
   ORDER_STATUS,
 } from '../constants/orders'
+import { isCsvBlob } from '../utils/csv'
 import { ApiError } from './client'
 import { createPageParams, readPaginatedResource } from './pagination'
 
@@ -48,21 +49,9 @@ export function isOrderSummary(order) {
   )
 }
 
-export async function loadOrderPage(request, query, signal) {
-  const {
-    page,
-    perPage,
-    search,
-    status,
-    priority,
-    customerId,
-    assigneeId,
-    dateFrom,
-    dateTo,
-    sort,
-    direction,
-  } = query
-  const params = createPageParams(page, perPage)
+function orderSearchParams(query, params = new URLSearchParams()) {
+  const { search, status, priority, customerId, assigneeId, dateFrom, dateTo, sort, direction } =
+    query
   params.set('sort', sort)
   params.set('direction', direction)
   if (search) params.set('search', search)
@@ -72,14 +61,28 @@ export async function loadOrderPage(request, query, signal) {
   if (positiveInteger(assigneeId)) params.set('assignee_id', String(assigneeId))
   if (dateFrom) params.set('date_from', dateFrom)
   if (dateTo) params.set('date_to', dateTo)
+  return params
+}
 
+export async function loadOrderPage(request, query, signal) {
+  const params = orderSearchParams(query, createPageParams(query.page, query.perPage))
   const response = await request(`/api/orders?${params}`, { signal })
   return readPaginatedResource(response, {
     resource: 'orders',
     isEntry: isOrderSummary,
-    page,
+    page: query.page,
     invalidMessage: 'The server returned an invalid order page.',
   })
+}
+
+export async function loadOrdersCsv(request, query, signal) {
+  const params = orderSearchParams(query)
+  const csv = await request(`/api/orders/export?${params}`, { responseType: 'blob', signal })
+  if (!isCsvBlob(csv)) {
+    throw new ApiError('The server returned an invalid order export.', { code: 'INVALID_RESPONSE' })
+  }
+
+  return csv
 }
 
 function partySearchKey(value) {

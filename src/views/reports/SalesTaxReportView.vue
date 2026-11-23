@@ -1,10 +1,11 @@
 <script setup>
 import { computed, nextTick, onMounted, onScopeDispose, reactive, useTemplateRef } from 'vue'
+import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VTextField } from 'vuetify/components/VTextField'
 import { loadOrderFilterPartyPage } from '../../api/orders'
 import { loadProductPage } from '../../api/products'
-import { loadSalesTaxReport } from '../../api/reports'
+import { loadSalesTaxCsv, loadSalesTaxReport } from '../../api/reports'
 import DirectoryPagination from '../../components/directory/DirectoryPagination.vue'
 import DirectoryPanel from '../../components/directory/DirectoryPanel.vue'
 import DirectoryLoadingState from '../../components/directory/DirectoryLoadingState.vue'
@@ -24,8 +25,21 @@ const resultsHeading = useTemplateRef('orders-heading')
 const requests = new AbortController()
 const emptyFields = { dateFrom: '', dateTo: '', customer: null, product: null, productId: '' }
 const fields = reactive({ ...emptyFields })
-const { query, result, error, loading, load, loadPage } = useReportDirectory({
+const {
+  query,
+  result,
+  error,
+  loading,
+  load,
+  loadPage,
+  canExport,
+  exporting,
+  exportError,
+  exportReport,
+} = useReportDirectory({
   fetchPage: (query, signal) => loadSalesTaxReport(auth.request, query, signal),
+  fetchCsv: (query, signal) => loadSalesTaxCsv(auth.request, query, signal),
+  fileName: 'sales-tax.csv',
   initialQuery: { page: 1 },
   signal: requests.signal,
 })
@@ -115,9 +129,26 @@ onScopeDispose(() => requests.abort())
     aria-labelledby="sales-title"
   >
     <header class="report-header">
-      <h1 id="sales-title" ref="heading" tabindex="-1">{{ REPORT_TITLE.SALES_TAX }}</h1>
-      <p>Realized sales and tax by completion date.</p>
+      <div>
+        <h1 id="sales-title" ref="heading" tabindex="-1">{{ REPORT_TITLE.SALES_TAX }}</h1>
+        <p>Realized sales and tax by completion date.</p>
+      </div>
+      <VBtn
+        type="button"
+        color="primary"
+        variant="outlined"
+        class="text-none"
+        :disabled="!canExport"
+        :loading="exporting"
+        @click="exportReport"
+      >
+        Export CSV
+      </VBtn>
     </header>
+
+    <VAlert v-if="exportError" type="error" variant="tonal" :icon="false" role="alert">
+      {{ exportError }}
+    </VAlert>
 
     <DirectoryPanel>
       <form

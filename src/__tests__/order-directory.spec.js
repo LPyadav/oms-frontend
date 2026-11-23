@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { loadOrderFilterPartyPage, loadOrderPage } from '../api/orders'
+import { loadOrderFilterPartyPage, loadOrderPage, loadOrdersCsv } from '../api/orders'
 import { usePagedDirectory } from '../composables/usePagedDirectory'
 import { FIRST_ORDER_PAGE } from '../constants/orders'
 import { formatOrderDate, formatOrderTotal } from '../utils/orderDisplay'
@@ -186,4 +186,36 @@ it('does not let a stale order request replace a newer filtered result', async (
   expect(directory.result.value.orders).toEqual([latest])
   expect(directory.query.value.search).toBe('Harbor')
   expect(directory.loading.value).toBe(false)
+})
+
+it('exports the applied order query without its page number', async () => {
+  const csv = new Blob(['Order number,Total'], { type: 'text/csv; charset=UTF-8' })
+  const request = vi.fn().mockResolvedValue(csv)
+  const { signal } = new AbortController()
+
+  await expect(
+    loadOrdersCsv(
+      request,
+      { ...FIRST_ORDER_PAGE, page: 3, search: 'Stock 100%', customerId: 8, sort: 'total' },
+      signal,
+    ),
+  ).resolves.toBe(csv)
+  const [[url, options]] = request.mock.calls
+  const parsed = new URL(url, 'http://localhost')
+  expect(parsed.pathname).toBe('/api/orders/export')
+  expect(Object.fromEntries(parsed.searchParams)).toEqual({
+    sort: 'total',
+    direction: 'desc',
+    search: 'Stock 100%',
+    customer_id: '8',
+  })
+  expect(options).toEqual({ responseType: 'blob', signal })
+})
+
+it('rejects an unexpected content type before creating a CSV download', async () => {
+  const request = vi.fn().mockResolvedValue(new Blob(['<html>'], { type: 'text/html' }))
+
+  await expect(loadOrdersCsv(request, FIRST_ORDER_PAGE)).rejects.toMatchObject({
+    code: 'INVALID_RESPONSE',
+  })
 })

@@ -293,11 +293,26 @@ export const useAuthStore = defineStore('auth', () => {
     const current = session
     await request('/api/me/password', { method: 'PATCH', body: passwords })
 
-    if (session === current) {
-      clearSession()
-      signedOutExplicitly.value = true
-      passwordWasChanged.value = true
+    if (session === current) finishPasswordChange()
+  }
+
+  async function resetPassword(passwords, signal) {
+    const current = session
+    const activeEmail = user.value?.email
+    await apiRequest('/api/reset-password', { method: 'POST', body: passwords, signal })
+
+    if (
+      session === current &&
+      (!activeEmail || activeEmail.toLowerCase() === passwords.email.toLowerCase())
+    ) {
+      finishPasswordChange()
     }
+  }
+
+  function finishPasswordChange() {
+    clearSession()
+    signedOutExplicitly.value = true
+    passwordWasChanged.value = true
   }
 
   async function refreshCurrentUser() {
@@ -374,6 +389,7 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     changePassword,
+    resetPassword,
     request,
     refreshCurrentUser,
     clearSession,

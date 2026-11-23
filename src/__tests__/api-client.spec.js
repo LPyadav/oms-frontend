@@ -122,3 +122,32 @@ it('sends an order idempotency key with a custom timeout', async () => {
     }),
   )
 })
+
+it('returns CSV blobs without changing JSON error handling', async () => {
+  fetchMock
+    .mockResolvedValueOnce(
+      new Response('Order number,Total', {
+        headers: { 'Content-Type': 'text/csv; charset=UTF-8' },
+      }),
+    )
+    .mockResolvedValueOnce(
+      Response.json(
+        {
+          success: false,
+          errors: { code: 'VALIDATION_FAILED', fields: { export: ['Narrow your filters.'] } },
+        },
+        { status: 422 },
+      ),
+    )
+
+  const file = await apiRequest(path, { responseType: 'blob', token: 'fixture-token' })
+  expect(file.type).toBe('text/csv;charset=utf-8')
+  expect(await file.text()).toBe('Order number,Total')
+  expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer fixture-token')
+
+  await expect(apiRequest(path, { responseType: 'blob' })).rejects.toMatchObject({
+    code: 'VALIDATION_FAILED',
+    status: 422,
+    fields: { export: ['Narrow your filters.'] },
+  })
+})

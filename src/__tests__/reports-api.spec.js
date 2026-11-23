@@ -1,6 +1,10 @@
 import { expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
-import { loadOrderFulfillmentReport } from '../api/reports'
+import {
+  loadOrderFulfillmentCsv,
+  loadOrderFulfillmentReport,
+  loadSalesTaxCsv,
+} from '../api/reports'
 import { formatOrderTotal } from '../utils/orderDisplay'
 
 const order = {
@@ -186,4 +190,51 @@ it('passes backend field errors through to the report filters', async () => {
   const request = vi.fn().mockRejectedValue(failure)
 
   await expect(loadOrderFulfillmentReport(request, { page: 1, dateFrom })).rejects.toBe(failure)
+})
+
+it.each([
+  {
+    loadCsv: loadOrderFulfillmentCsv,
+    path: '/api/reports/orders/export',
+    filters: { status: 'completed', assigneeId: 3 },
+    expected: { status: 'completed', assignee_id: '3' },
+  },
+  {
+    loadCsv: loadSalesTaxCsv,
+    path: '/api/reports/sales-tax/export',
+    filters: { productId: 19 },
+    expected: { product_id: '19' },
+  },
+])(
+  'sends the applied filters without pagination to $path',
+  async ({ loadCsv, path, filters, expected }) => {
+    const csv = new Blob(['Order number,Total'], { type: 'text/csv; charset=UTF-8' })
+    const request = vi.fn().mockResolvedValue(csv)
+    const { signal } = new AbortController()
+
+    await expect(
+      loadCsv(
+        request,
+        { page: 3, perPage: 25, dateFrom, dateTo, customerId: 8, ...filters },
+        signal,
+      ),
+    ).resolves.toBe(csv)
+
+    const [[url, options]] = request.mock.calls
+    const parsed = new URL(url, 'http://localhost')
+    expect(parsed.pathname).toBe(path)
+    expect(Object.fromEntries(parsed.searchParams)).toEqual({
+      date_from: dateFrom,
+      date_to: dateTo,
+      customer_id: '8',
+      ...expected,
+    })
+    expect(options).toEqual({ responseType: 'blob', signal })
+  },
+)
+
+it('rejects a report export with an unexpected content type', async () => {
+  const request = vi.fn().mockResolvedValue(new Blob(['<html>'], { type: 'text/html' }))
+
+  await expect(loadSalesTaxCsv(request, {})).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
 })

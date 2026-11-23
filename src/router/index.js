@@ -26,6 +26,17 @@ export function createAppRouter(history = createWebHistory(import.meta.env.BASE_
         meta: { guestOnly: true },
       },
       {
+        path: '/forgot-password',
+        name: 'forgot-password',
+        component: () => import('../views/auth/PasswordRecoveryView.vue'),
+      },
+      {
+        path: '/reset-password',
+        name: 'reset-password',
+        component: () => import('../views/auth/PasswordRecoveryView.vue'),
+        props: { reset: true },
+      },
+      {
         path: '/dashboard',
         component: workspaceLayout,
         meta: { requiresAuth: true, sectionTitle: 'Analytics', requiresDashboardView: true },
