@@ -1,3 +1,5 @@
+export const CSV_EXPORT_TIMEOUT_MS = 240_000
+
 export function isCsvBlob(value) {
   return value instanceof Blob && value.type.split(';', 1)[0] === 'text/csv'
 }

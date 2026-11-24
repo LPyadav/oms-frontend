@@ -1,5 +1,5 @@
 import { SALES_TAX_AMOUNTS } from '../constants/reports'
-import { isCsvBlob } from '../utils/csv'
+import { CSV_EXPORT_TIMEOUT_MS, isCsvBlob } from '../utils/csv'
 import { isReportTimeZone } from '../utils/reportDates'
 import { ApiError } from './client'
 import { isCalendarDate, isOrderSummary } from './orders'
@@ -71,7 +71,11 @@ async function loadReportCsv(request, path, params, signal) {
   params.delete('page')
   params.delete('per_page')
   const query = params.size ? '?' + params : ''
-  const csv = await request(path + query, { responseType: 'blob', signal })
+  const csv = await request(path + query, {
+    responseType: 'blob',
+    signal,
+    timeoutMs: CSV_EXPORT_TIMEOUT_MS,
+  })
   if (!isCsvBlob(csv)) {
     throw new ApiError('The server returned an invalid report export.', {
       code: 'INVALID_RESPONSE',

@@ -209,7 +209,7 @@ it('exports the applied order query without its page number', async () => {
     search: 'Stock 100%',
     customer_id: '8',
   })
-  expect(options).toEqual({ responseType: 'blob', signal })
+  expect(options).toEqual({ responseType: 'blob', signal, timeoutMs: 240_000 })
 })
 
 it('rejects an unexpected content type before creating a CSV download', async () => {

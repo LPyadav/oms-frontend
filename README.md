@@ -91,6 +91,7 @@ results. Verify loading, empty, retry, and permission-denied paths.
   policies and query scopes enforce permissions even when controls are hidden.
 - **API client** handles the response envelope, cancellation, and a default
   10-second timeout. A caller can supply a positive-integer `timeoutMs`.
+  CSV downloads allow up to four minutes.
   See the backend [OpenAPI contract](https://github.com/LPyadav/oms-backend/blob/main/docs/openapi.yaml).
 - **Session storage** keeps a bearer token across refreshes in the same tab.
   Same-origin JavaScript can read it, so an XSS defect could expose it until
