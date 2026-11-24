@@ -9,9 +9,13 @@ const props = defineProps({ trend: { type: Object, required: true } })
 const currency = ref('')
 const showValues = ref(false)
 const currencies = computed(() => props.trend.series.map((series) => series.currency))
-const points = computed(
-  () => props.trend.series.find((series) => series.currency === currency.value)?.points ?? [],
-)
+const points = computed(() => {
+  const selected = props.trend.series.find((series) => series.currency === currency.value)
+  const selectedPoints = selected?.points ?? []
+  return selectedPoints.toSorted((left, right) =>
+    right.period_start.localeCompare(left.period_start),
+  )
+})
 const hasCompletedOrders = computed(() => points.value.some((point) => point.completed_orders > 0))
 const values = computed(() => points.value.map((point) => BigInt(point.revenue_minor)))
 const maximum = computed(() =>
@@ -97,7 +101,12 @@ const minimumWidth = computed(() => Math.max(248, points.value.length * 8) + 'px
         </span>
       </div>
 
-      <div class="trend-scroll" role="region" tabindex="0" aria-label="Scrollable revenue chart">
+      <div
+        class="trend-scroll"
+        role="region"
+        tabindex="0"
+        aria-label="Scrollable revenue chart, newest first"
+      >
         <div class="trend-track" :style="{ '--track-width': minimumWidth }" aria-hidden="true">
           <div class="trend-bars" :style="{ '--columns': points.length }">
             <span
@@ -161,7 +170,7 @@ const minimumWidth = computed(() => Math.max(248, points.value.length * 8) + 'px
           </caption>
           <thead>
             <tr>
-              <th scope="col">Period</th>
+              <th scope="col" aria-sort="descending">Period</th>
               <th scope="col">Completed orders</th>
               <th scope="col">Revenue</th>
             </tr>

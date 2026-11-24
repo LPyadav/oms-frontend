@@ -31,6 +31,19 @@ vi.mock('vuetify/components/VBtn', async () => {
   }
 })
 
+vi.mock('vuetify/components/VSheet', async () => {
+  const { h } = await import('vue')
+  return {
+    VSheet: {
+      props: ['tag'],
+      setup:
+        (props, { slots }) =>
+        () =>
+          h(props.tag || 'div', slots.default?.()),
+    },
+  }
+})
+
 vi.mock('vuetify/components/VTextField', async () => {
   const { h } = await import('vue')
   return {

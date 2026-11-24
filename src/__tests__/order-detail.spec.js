@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../api/client'
 import { loadOrder } from '../api/orders'
 import { useOrderDetail } from '../composables/useOrderDetail'
-import { orderActivity, orderTimeline } from '../utils/orderHistory'
+import { orderActivity, orderNotes, orderTimeline } from '../utils/orderHistory'
 
 const createdAt = '2026-11-20T06:00:00Z'
 const confirmedAt = '2026-11-20T06:20:00Z'
@@ -188,10 +188,14 @@ describe('order history', () => {
     expect(orderTimeline(cancelled).at(-1)).toMatchObject({ key: 'cancelled', at: confirmedAt })
   })
 
-  it('merges dated status, note, assignment, and system events newest first', () => {
+  it('separates notes from dated status, assignment, and system events', () => {
     const noteAt = '2026-11-20T06:45:00Z'
     const order = orderDetail({
-      notes: [{ id: 1, author: actor, body: 'Pack separately.', created_at: noteAt }],
+      notes: [
+        { id: 1, author: actor, body: 'Original note.', created_at: createdAt },
+        { id: 2, author: actor, body: 'Pack separately.', created_at: noteAt },
+        { id: 3, author: actor, body: 'Keep upright.', created_at: noteAt },
+      ],
       assignment_history: [
         {
           id: 1,
@@ -215,13 +219,18 @@ describe('order history', () => {
     const events = orderActivity(order)
 
     expect(events.map(({ key }) => key)).toEqual([
-      'note-1',
       'status-2',
       'status-1',
       'assignment-1',
       'system-1',
     ])
-    expect(events[0]).toMatchObject({ actor: actor.name, body: 'Pack separately.', at: noteAt })
-    expect(events[3]).toMatchObject({ title: 'User #6 → Mira Lane', actor: 'User #3' })
+    expect(events[2]).toMatchObject({ title: 'User #6 → Mira Lane', actor: 'User #3' })
+    expect(orderNotes(order).map(({ id }) => id)).toEqual([3, 2, 1])
+    expect(orderNotes(order)[1]).toMatchObject({
+      author: actor,
+      body: 'Pack separately.',
+      created_at: noteAt,
+    })
+    expect(order.notes.map(({ id }) => id)).toEqual([1, 2, 3])
   })
 })

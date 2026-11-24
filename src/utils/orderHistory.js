@@ -33,6 +33,13 @@ function assigneeLabel(order, id) {
   return order.assignee?.id === id ? order.assignee.name : `User #${id}`
 }
 
+export function orderNotes(order) {
+  return order.notes.toSorted(
+    (left, right) =>
+      Date.parse(right.created_at) - Date.parse(left.created_at) || right.id - left.id,
+  )
+}
+
 export function orderActivity(order) {
   const events = [
     ...order.status_history.map((entry) => ({
@@ -42,14 +49,6 @@ export function orderActivity(order) {
       actor: entry.actor?.name ?? 'Unknown actor',
       at: entry.created_at,
       body: entry.remarks,
-    })),
-    ...order.notes.map((entry) => ({
-      key: `note-${entry.id}`,
-      type: 'Note',
-      title: 'Note added',
-      actor: entry.author?.name ?? 'Unknown author',
-      at: entry.created_at,
-      body: entry.body,
     })),
     ...order.assignment_history.map((entry) => ({
       key: `assignment-${entry.id}`,

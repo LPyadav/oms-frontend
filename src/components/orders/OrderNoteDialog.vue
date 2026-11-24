@@ -58,7 +58,7 @@ function showFailure(error) {
     reviewRequired.value = true
     feedback.value = {
       type: 'warning',
-      message: 'The save could not be confirmed. Reload activity before sending this note again.',
+      message: 'The save could not be confirmed. Reload notes before sending this note again.',
     }
   }
 }
@@ -87,7 +87,7 @@ async function submit() {
   }
 }
 
-async function reloadActivity() {
+async function reloadNotes() {
   if (busy.value || !reviewRequired.value) return
 
   reloading.value = true
@@ -102,15 +102,15 @@ async function reloadActivity() {
     )
     snapshot.value = latest
     reviewRequired.value = false
-    let message = 'Activity reloaded. Your draft is ready if you want to try again.'
-    if (noteFound.value) message = 'A new note with this text is already in Activity.'
+    let message = 'Notes reloaded. Your draft is ready if you want to try again.'
+    if (noteFound.value) message = 'A new note with this text is already in Notes.'
     else if (!canWrite.value) message = 'Your access to add notes to this order has changed.'
     feedback.value = { type: 'info', message }
     emit('refreshed', latest)
   } catch (error) {
     if (controller.signal.aborted || error.status === 401) return
     if ([403, 404].includes(error.status)) emit('unavailable')
-    else feedback.value = { type: 'error', message: 'Unable to reload activity. Try again.' }
+    else feedback.value = { type: 'error', message: 'Unable to reload notes. Try again.' }
   } finally {
     reloading.value = false
     await nextTick()
@@ -181,9 +181,9 @@ onScopeDispose(() => controller.abort())
             :loading="reloading"
             :disabled="busy"
             class="text-none"
-            @click="reloadActivity"
+            @click="reloadNotes"
           >
-            Reload activity
+            Reload notes
           </VBtn>
           <VBtn
             v-else-if="canWrite"

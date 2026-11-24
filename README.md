@@ -7,11 +7,13 @@ authorization, order pricing, inventory, notifications, and reports.
 ## Setup
 
 - Node.js 22.18+ on Node 22 or Node.js 24.12+, with its bundled npm.
-- PHP, Composer, and MySQL for the Laravel app. Follow the backend README
-  to configure `.env`, generate its application key, and run migrations.
-- Start Laravel on `http://127.0.0.1:8000`. Use the backend assessment demo
-  seed for review accounts and sample orders. Run the queue worker and scheduler
-  for notification delivery.
+- PHP, Composer 2.8 or later, and MySQL for the Laravel app. Follow the
+  [backend local setup](https://github.com/LPyadav/oms-backend#local-setup)
+  to configure `.env` and generate the application key.
+- Follow the [assessment demo setup](https://github.com/LPyadav/oms-backend#assessment-demo-dataset)
+  for migrations, review accounts, sample orders, and the queue worker and
+  scheduler. Save the generated demo passwords and start Laravel on
+  `http://127.0.0.1:8000`.
 
 From the frontend checkout:
 
@@ -36,10 +38,11 @@ Apply the filters, then select **Export CSV** on the relevant page.
 - **Sales/Tax report** uses the completion date range, customer and product. A product
   filter includes the full totals of matching completed orders.
 
-Both report downloads require report access. Each CSV includes matching rows
-across all pages. The backend allows up to 50,000 matching orders per CSV by
-default and configures the limits for Orders and report exports separately.
-Apply narrower filters if the result exceeds the configured limit.
+Both report downloads require report access. Orders and both report exports
+include matching rows across all pages. The default limit is 50,000 orders per
+download. The backend can lower the limit through `ORDERS_EXPORT_MAX_ROWS`
+for Orders and `REPORTS_EXPORT_MAX_ROWS` for both reports. Apply narrower
+filters if the result exceeds the configured limit.
 
 | Area                   | What to verify                                                                                                                                                                                                                                                      |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -51,10 +54,17 @@ Apply narrower filters if the result exceeds the configured limit.
 | Notifications          | Verify an assignment, confirmation, or cancellation in the recipient inbox. Check the unread badge, mark one, and mark all.                                                                                                                                         |
 | Dashboard and reports  | As Admin or Manager with permission, verify KPIs and revenue. Under Reports, use Order/Fulfillment report for order dates and Sales/Tax report for completion dates in the reporting timezone.                                                                      |
 
-From Sign in, use **Forgot password?** and open the link in the backend’s
-configured mail inbox. The link opens the same frontend origin on
-`/reset-password`. Reset the password, sign in again, and verify that any
-earlier sessions for the account have been revoked.
+To verify password recovery locally, run
+`php artisan queue:work --queue=notifications,default` from the backend
+directory. On the sign-in page, select **Forgot password?** and submit an
+active demo account email.
+With the default `MAIL_MAILER=log`, open the reset link from the backend’s
+`storage/logs/laravel.log` after the worker processes the request. The link
+opens `/reset-password` on the Vue app. Set a new password, sign in again,
+and verify that earlier sessions for the account have been revoked.
+
+The [backend password recovery guide](https://github.com/LPyadav/oms-backend/blob/main/docs/password-recovery.md)
+covers SMTP inbox delivery and troubleshooting.
 
 ## Testing and build
 

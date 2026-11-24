@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import { loadPermissionCatalog } from '../api/adminRoles'
 import { loadUserPermissions, replaceUserPermissions } from '../api/adminUsers'
+import { AUTH_ROLE } from '../constants/auth'
 
 function errorMessage(failure, fallback) {
   if (failure.status === 403) return 'You do not have permission to manage user grants.'
@@ -21,16 +22,51 @@ function validationMessage(failure) {
     .find((message) => typeof message === 'string' && message.trim())
 }
 
-export function useUserPermissions({ request, userId, signal }) {
+export function useUserPermissions({ request, userId, targetRoles = [], signal }) {
+  const targetIsAdmin = targetRoles.includes(AUTH_ROLE.ADMIN)
   const grants = shallowRef(null)
-  const catalog = shallowRef([])
-  const selectedPermissions = ref([])
+  const permissionCatalog = shallowRef(null)
+  const selection = ref([])
   const loading = ref(false)
   const saving = ref(false)
   const loadError = ref('')
   const saveError = ref('')
   const reloadRequired = ref(false)
 
+  const restrictionsUnavailable = computed(
+    () => !targetIsAdmin && permissionCatalog.value?.adminOnlyPermissions === null,
+  )
+  const restrictedPermissions = computed(() => {
+    if (targetIsAdmin) return new Set()
+
+    const available = permissionCatalog.value
+    return new Set(available?.adminOnlyPermissions ?? available?.permissions)
+  })
+  const legacyRestrictedGrants = computed(
+    () =>
+      new Set(
+        grants.value?.directPermissions.filter((name) => restrictedPermissions.value.has(name)),
+      ),
+  )
+  const catalog = computed(
+    () =>
+      permissionCatalog.value?.permissions.filter(
+        (name) => !restrictedPermissions.value.has(name) || legacyRestrictedGrants.value.has(name),
+      ) ?? [],
+  )
+
+  function canChangePermission(name) {
+    return !restrictedPermissions.value.has(name) || selection.value.includes(name)
+  }
+
+  const selectedPermissions = computed({
+    get: () => selection.value,
+    set: (names) => {
+      if (names.every((name) => catalog.value.includes(name) && canChangePermission(name))) {
+        selection.value = names
+      }
+    },
+  })
   const canEdit = computed(
     () =>
       !!grants.value &&
@@ -57,16 +93,20 @@ export function useUserPermissions({ request, userId, signal }) {
     saveError.value = ''
     reloadRequired.value = false
     try {
-      const [currentGrants, { permissions: names }] = await Promise.all([
+      const [currentGrants, availablePermissions] = await Promise.all([
         loadUserPermissions(request, userId, signal),
         loadPermissionCatalog(request, signal),
       ])
       if (signal.aborted) return
 
       grants.value = currentGrants
-      catalog.value = names
-      selectedPermissions.value = [...currentGrants.directPermissions]
-      if (currentGrants.directPermissions.some((name) => !names.includes(name))) {
+      permissionCatalog.value = availablePermissions
+      selection.value = [...currentGrants.directPermissions]
+      if (
+        currentGrants.directPermissions.some(
+          (name) => !availablePermissions.permissions.includes(name),
+        )
+      ) {
         loadError.value = 'Some direct grants are missing from the catalog. Reload before editing.'
       }
     } catch (failure) {
@@ -93,7 +133,7 @@ export function useUserPermissions({ request, userId, signal }) {
       if (signal.aborted) return null
 
       grants.value = saved
-      selectedPermissions.value = [...saved.directPermissions]
+      selection.value = [...saved.directPermissions]
       return saved
     } catch (failure) {
       if (!signal.aborted && failure.status !== 401) {
@@ -111,6 +151,8 @@ export function useUserPermissions({ request, userId, signal }) {
   return {
     grants,
     catalog,
+    restrictionsUnavailable,
+    legacyRestrictedGrants,
     selectedPermissions,
     loading,
     saving,
@@ -118,6 +160,7 @@ export function useUserPermissions({ request, userId, signal }) {
     saveError,
     reloadRequired,
     canEdit,
+    canChangePermission,
     canSave,
     load,
     save,

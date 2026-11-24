@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { VAlert } from 'vuetify/components/VAlert'
 import { VBtn } from 'vuetify/components/VBtn'
 import { VTextField } from 'vuetify/components/VTextField'
+import { aliases } from 'vuetify/iconsets/mdi-svg'
 import { useSignInForm } from '../../composables/useSignInForm'
 import AuthLayout from '../../layouts/AuthLayout.vue'
 import { signedInLocation } from '../../router/authRedirect'
@@ -122,12 +123,13 @@ async function retrySession() {
         </VTextField>
 
         <VBtn
-          class="text-none"
+          class="login-submit text-none"
           type="submit"
           color="primary"
           variant="flat"
           rounded="lg"
-          height="48"
+          height="50"
+          :append-icon="aliases.next"
           :loading="signingIn"
           :disabled="signingIn"
         >
@@ -151,13 +153,12 @@ async function retrySession() {
 <style scoped>
 .login-panel {
   display: grid;
-  gap: 20px;
-  width: min(100%, 410px);
+  gap: 24px;
 }
 
 .login-panel h1 {
   margin: 0 0 8px;
-  font-size: clamp(2.125rem, 4.25vw, 3.375rem);
+  font-size: clamp(2rem, 4vw, 2.75rem);
   font-weight: 700;
   line-height: 1.12;
   letter-spacing: -0.045em;
@@ -171,22 +172,38 @@ async function retrySession() {
   margin: 0;
 }
 
+.login-panel header p {
+  color: rgb(var(--v-theme-on-surface-variant));
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
 .login-form {
   display: grid;
   gap: 18px;
 }
 
 .login-recovery-link {
-  justify-self: start;
+  justify-self: center;
+  margin-top: -2px;
+}
+
+.login-submit:not(.v-btn--disabled) {
+  background-image: linear-gradient(107deg, #ffd298, #efad63 82%);
+  box-shadow: 0 9px 21px rgba(var(--v-theme-primary), 0.22);
 }
 
 .login-form :deep(.v-field) {
-  border-radius: 10px;
-  background: rgb(var(--v-theme-surface));
+  border-radius: 12px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
+}
+
+.login-form :deep(.v-field--focused:not(.v-field--error)) {
+  background: rgba(var(--v-theme-primary), 0.07);
+  box-shadow: 0 0 0 3px rgba(var(--v-theme-primary), 0.16);
 }
 
 .login-form :deep(.v-label) {
-  color: #475f56;
   opacity: 1;
 }
 </style>

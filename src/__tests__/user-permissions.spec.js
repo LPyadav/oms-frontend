@@ -5,6 +5,7 @@ const userId = 12
 const endpoint = '/api/admin/users/12/permissions'
 const inherited = ['orders.view.assigned']
 const catalog = ['orders.view.assigned', 'orders.create', 'products.view']
+const adminOnlyPermission = 'users.manage'
 
 function envelope(direct = [], fields = {}) {
   return {
@@ -17,12 +18,21 @@ function envelope(direct = [], fields = {}) {
   }
 }
 
-function setup(direct = []) {
+function setup(direct = [], targetRoles = ['manager']) {
   const controller = new AbortController()
   const request = vi.fn((path) =>
-    Promise.resolve(path === endpoint ? envelope(direct) : { data: { permissions: catalog } }),
+    Promise.resolve(
+      path === endpoint
+        ? envelope(direct)
+        : {
+            data: {
+              permissions: [...catalog, adminOnlyPermission],
+              admin_only_permissions: [adminOnlyPermission],
+            },
+          },
+    ),
   )
-  const state = useUserPermissions({ request, userId, signal: controller.signal })
+  const state = useUserPermissions({ request, userId, targetRoles, signal: controller.signal })
   return { request, controller, state }
 }
 
@@ -152,23 +162,85 @@ it('ignores a result after the permission dialog has closed', async () => {
   expect(state.canEdit.value).toBe(false)
 })
 
-it('uses the full catalog for direct grants when the response marks role-only restrictions', async () => {
-  const { state, request } = setup()
-  const reserved = 'users.manage'
-  request
-    .mockResolvedValueOnce(envelope())
-    .mockResolvedValueOnce({
-      data: { permissions: [...catalog, reserved], admin_only_permissions: [reserved] },
-    })
-    .mockResolvedValueOnce(envelope([reserved]))
+it.each(['manager', 'staff'])('excludes Admin-only choices for a %s account', async (role) => {
+  const { state, request } = setup([], [role])
 
   await state.load()
-  expect(state.catalog.value).toContain(reserved)
-  state.selectedPermissions.value = [reserved]
+
+  expect(state.catalog.value).toEqual(catalog)
+  state.selectedPermissions.value = [adminOnlyPermission]
+  expect(state.selectedPermissions.value).toEqual([])
+  await expect(state.save()).resolves.toBeNull()
+  expect(request).toHaveBeenCalledTimes(2)
+})
+
+it('allows Admin-only direct grants for accounts with the Admin role', async () => {
+  const { state, request } = setup([], ['manager', 'admin'])
+  await state.load()
+  expect(state.catalog.value).toContain(adminOnlyPermission)
+  state.selectedPermissions.value = [adminOnlyPermission]
+  request.mockResolvedValueOnce(envelope([adminOnlyPermission]))
 
   await state.save()
   expect(request).toHaveBeenLastCalledWith(
     endpoint,
-    expect.objectContaining({ method: 'PATCH', body: { direct_permissions: [reserved] } }),
+    expect.objectContaining({
+      method: 'PATCH',
+      body: { direct_permissions: [adminOnlyPermission] },
+    }),
+  )
+})
+
+it('retains existing Admin-only grants until removed and then blocks reselecting them', async () => {
+  const { state, request } = setup([adminOnlyPermission])
+  await state.load()
+  expect(state.catalog.value).toContain(adminOnlyPermission)
+  expect(state.legacyRestrictedGrants.value.has(adminOnlyPermission)).toBe(true)
+  expect(state.canChangePermission(adminOnlyPermission)).toBe(true)
+
+  state.selectedPermissions.value = [adminOnlyPermission, 'products.view']
+  request.mockResolvedValueOnce(envelope([adminOnlyPermission, 'products.view']))
+  await state.save()
+  expect(request).toHaveBeenLastCalledWith(
+    endpoint,
+    expect.objectContaining({
+      method: 'PATCH',
+      body: { direct_permissions: [adminOnlyPermission, 'products.view'] },
+    }),
+  )
+
+  state.selectedPermissions.value = []
+  expect(state.canChangePermission(adminOnlyPermission)).toBe(false)
+  state.selectedPermissions.value = [adminOnlyPermission]
+  expect(state.selectedPermissions.value).toEqual([])
+  request.mockResolvedValueOnce(envelope())
+
+  await state.save()
+  expect(request).toHaveBeenLastCalledWith(
+    endpoint,
+    expect.objectContaining({ method: 'PATCH', body: { direct_permissions: [] } }),
+  )
+  expect(state.catalog.value).toEqual(catalog)
+  expect(state.grants.value.inheritedPermissions).toEqual(inherited)
+})
+
+it('blocks new non-Admin grants when catalog rules are unavailable and still allows removal', async () => {
+  const { state, request } = setup(['orders.create'])
+  request
+    .mockResolvedValueOnce(envelope(['orders.create']))
+    .mockResolvedValueOnce({ data: { permissions: catalog } })
+    .mockResolvedValueOnce(envelope())
+
+  await state.load()
+  expect(state.restrictionsUnavailable.value).toBe(true)
+  expect(state.catalog.value).toEqual(['orders.create'])
+  state.selectedPermissions.value = ['orders.create', 'products.view']
+  expect(state.selectedPermissions.value).toEqual(['orders.create'])
+  state.selectedPermissions.value = []
+  await state.save()
+
+  expect(request).toHaveBeenLastCalledWith(
+    endpoint,
+    expect.objectContaining({ method: 'PATCH', body: { direct_permissions: [] } }),
   )
 })
